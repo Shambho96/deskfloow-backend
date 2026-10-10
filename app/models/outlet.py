@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, Boolean, ForeignKey
+from sqlalchemy import String, Boolean, BigInteger, ForeignKey
 from typing import TYPE_CHECKING
 from app.db.base import Base
 
@@ -9,8 +9,8 @@ if TYPE_CHECKING:
 class Outlet(Base):
     __tablename__ = "outlets"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True) # e.g. 'out_kolhapur'
-    client_id: Mapped[str] = mapped_column(String(64), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    client_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     city: Mapped[str] = mapped_column(String(100), nullable=False)
     phone: Mapped[str] = mapped_column(String(50), nullable=True)

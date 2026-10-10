@@ -27,6 +27,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def create_jwt_token(payload: Dict[str, Any], expires_minutes: Optional[int] = None) -> str:
     """Generates a signed JWT token."""
     to_encode = payload.copy()
+    if "sub" in to_encode and to_encode["sub"] is not None:
+        to_encode["sub"] = str(to_encode["sub"])
     expire_delta = timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     expire = datetime.now(timezone.utc) + expire_delta
     to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})

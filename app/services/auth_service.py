@@ -1,9 +1,9 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import HTTPException, status, Response
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union, List
 from app.models import User, UserClientOutletMapping, Outlet
-from app.core.security import verify_password, create_jwt_token, decrypt_phone
+from app.core.security import verify_password, create_jwt_token
 from app.core.context import UserContext
 from app.config import settings
 
@@ -13,17 +13,29 @@ async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     result = await db.execute(query)
     return result.scalars().first()
 
-async def get_user_outlets(db: AsyncSession, user_id: str) -> list[str]:
-    """Fetches list of outlet IDs mapped to a user."""
-    query = select(UserClientOutletMapping.outlet_id).where(UserClientOutletMapping.user_id == user_id)
+async def get_user_outlets(db: AsyncSession, user_id: Union[int, str]) -> List[Union[int, str]]:
+    """Fetches list of active outlet IDs mapped to a user."""
+    query = (
+        select(UserClientOutletMapping.outlet_id)
+        .join(Outlet, UserClientOutletMapping.outlet_id == Outlet.id)
+        .where(
+            UserClientOutletMapping.user_id == user_id,
+            Outlet.is_active == True
+        )
+    )
     result = await db.execute(query)
     return list(result.scalars().all())
 
-async def get_primary_outlet_id(db: AsyncSession, user_id: str) -> Optional[str]:
-    """Fetches the primary outlet ID mapped to a user."""
-    query = select(UserClientOutletMapping.outlet_id).where(
-        UserClientOutletMapping.user_id == user_id,
-        UserClientOutletMapping.is_primary == True
+async def get_primary_outlet_id(db: AsyncSession, user_id: Union[int, str]) -> Optional[Union[int, str]]:
+    """Fetches the primary active outlet ID mapped to a user."""
+    query = (
+        select(UserClientOutletMapping.outlet_id)
+        .join(Outlet, UserClientOutletMapping.outlet_id == Outlet.id)
+        .where(
+            UserClientOutletMapping.user_id == user_id,
+            UserClientOutletMapping.is_primary == True,
+            Outlet.is_active == True
+        )
     )
     result = await db.execute(query)
     return result.scalars().first()
@@ -32,12 +44,11 @@ async def authenticate_user(
     db: AsyncSession,
     email: str,
     password: str,
-    target_outlet_id: Optional[str] = None
+    target_outlet_id: Optional[Union[int, str]] = None
 ) -> Dict[str, Any]:
     """
     Authenticates user, enforces Staff Login Guard, and builds JWT payload.
     """
-    # 1. Fetch user
     user = await get_user_by_email(db, email)
     if not user or not verify_password(password, user.password_hash):
         raise HTTPException(
@@ -45,14 +56,13 @@ async def authenticate_user(
             detail="Invalid email or password"
         )
 
-    # 2. STRICT LOGIN GUARD: Block STAFF accounts from web login
+    # STRICT LOGIN GUARD: Block STAFF accounts from web login
     if user.role == "STAFF" or not user.can_login:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Staff accounts are restricted from web dashboard login. Stored for WhatsApp ops only."
         )
 
-    # 3. Resolve user's allowed outlets
     allowed_outlets = await get_user_outlets(db, user.id)
     if not allowed_outlets:
         raise HTTPException(
@@ -60,7 +70,6 @@ async def authenticate_user(
             detail="User has no assigned hotel outlets"
         )
 
-    # 4. Resolve active outlet
     active_outlet = target_outlet_id or await get_primary_outlet_id(db, user.id) or allowed_outlets[0]
     if active_outlet not in allowed_outlets and user.role != "OWNER":
         raise HTTPException(
@@ -68,9 +77,8 @@ async def authenticate_user(
             detail=f"Access denied to target outlet '{active_outlet}'"
         )
 
-    # 5. Build JWT Payload
     jwt_payload = {
-        "sub": user.id,
+        "sub": str(user.id),
         "client_id": user.client_id,
         "outlet_id": active_outlet,
         "role": user.role,
@@ -95,10 +103,10 @@ async def authenticate_user(
     }
 
 def set_auth_cookie(response: Response, token: str) -> None:
-    """Sets HttpOnly secure auth cookie on response object."""
+    """Sets clean JWT token string in HttpOnly cookie."""
     response.set_cookie(
         key="access_token",
-        value=f"Bearer {token}",
+        value=token, # Pure JWT token without quotes or Bearer prefix
         httponly=True,
         secure=settings.ENVIRONMENT == "production",
         samesite="lax",
@@ -107,5 +115,4 @@ def set_auth_cookie(response: Response, token: str) -> None:
     )
 
 def clear_auth_cookie(response: Response) -> None:
-    """Clears HttpOnly auth cookie on logout."""
     response.delete_cookie(key="access_token", path="/")

@@ -14,20 +14,27 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
     """
     Strawberry GraphQL context dependency. Runs on every GraphQL request to attach user context.
     """
-    token = request.cookies.get("access_token")
-    if not token and "Authorization" in request.headers:
-        token = request.headers["Authorization"]
+    candidates = []
+    if "Authorization" in request.headers:
+        candidates.append(request.headers["Authorization"])
+    if "access_token" in request.cookies:
+        candidates.append(request.cookies["access_token"])
 
     user_context = None
 
-    if token:
-        if token.startswith("Bearer "):
-            token = token.split(" ")[1]
+    for raw_token in candidates:
+        if not raw_token:
+            continue
+        token = str(raw_token).strip('"').strip("'").strip()
+        if token.lower().startswith("bearer "):
+            token = token.split(" ", 1)[1].strip('"').strip("'").strip()
 
         payload = decode_jwt_token(token)
         if payload and payload.get("role") != "STAFF":
+            raw_sub = payload.get("sub")
+            user_id = int(raw_sub) if str(raw_sub).isdigit() else raw_sub
             user_context = UserContext(
-                user_id=payload["sub"],
+                user_id=user_id,
                 client_id=payload["client_id"],
                 outlet_id=payload["outlet_id"],
                 role=payload["role"],
@@ -35,5 +42,6 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
                 name=payload.get("name"),
                 allowed_outlets=payload.get("allowed_outlets", [])
             )
+            break
 
     return GraphQLContext(request=request, user=user_context)

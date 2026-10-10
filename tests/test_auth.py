@@ -20,18 +20,18 @@ async def setup_test_db():
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as session:
-        client = Client(id="cl_grand_palace", name="Grand Palace Hotel", is_active=True)
+        client = Client(id=1, name="Grand Palace Hotel", is_active=True)
         session.add(client)
 
         outlets = [
-            Outlet(id="out_ichalkaranji", client_id="cl_grand_palace", name="Grand Palace - Ichalkaranji", city="Ichalkaranji", phone="+912302400001"),
-            Outlet(id="out_kolhapur", client_id="cl_grand_palace", name="Grand Palace - Kolhapur", city="Kolhapur", phone="+912312600002"),
+            Outlet(id=101, client_id=1, name="Grand Palace - Ichalkaranji", city="Ichalkaranji", phone="+912302400001"),
+            Outlet(id=102, client_id=1, name="Grand Palace - Kolhapur", city="Kolhapur", phone="+912312600002"),
         ]
         session.add_all(outlets)
 
         owner = User(
-            id="usr_owner_01",
-            client_id="cl_grand_palace",
+            id=1001,
+            client_id=1,
             name="Vikramaditya Roy (Owner)",
             email="owner@grandpalace.com",
             password_hash=hash_password("Owner@123"),
@@ -43,8 +43,8 @@ async def setup_test_db():
         )
 
         mgr = User(
-            id="usr_mgr_01",
-            client_id="cl_grand_palace",
+            id=1002,
+            client_id=1,
             name="Rajesh Sharma (Manager)",
             email="manager.kolhapur@grandpalace.com",
             password_hash=hash_password("Manager@123"),
@@ -56,8 +56,8 @@ async def setup_test_db():
         )
 
         staff = User(
-            id="usr_staff_01",
-            client_id="cl_grand_palace",
+            id=1003,
+            client_id=1,
             name="Ramesh Kumar (Staff)",
             email="ramesh@grandpalace.com",
             password_hash=hash_password("StaffNoLoginKey"),
@@ -71,9 +71,9 @@ async def setup_test_db():
         session.add_all([owner, mgr, staff])
 
         mappings = [
-            UserClientOutletMapping(id="map_o1", user_id="usr_owner_01", client_id="cl_grand_palace", outlet_id="out_kolhapur", is_primary=True),
-            UserClientOutletMapping(id="map_m1", user_id="usr_mgr_01", client_id="cl_grand_palace", outlet_id="out_kolhapur", is_primary=True),
-            UserClientOutletMapping(id="map_s1", user_id="usr_staff_01", client_id="cl_grand_palace", outlet_id="out_kolhapur", is_primary=True),
+            UserClientOutletMapping(id=1, user_id=1001, client_id=1, outlet_id=102, is_primary=True),
+            UserClientOutletMapping(id=2, user_id=1002, client_id=1, outlet_id=102, is_primary=True),
+            UserClientOutletMapping(id=3, user_id=1003, client_id=1, outlet_id=102, is_primary=True),
         ]
         session.add_all(mappings)
         await session.commit()

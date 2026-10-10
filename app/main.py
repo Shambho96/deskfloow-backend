@@ -16,6 +16,10 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    swagger_ui_parameters={
+        "withCredentials": True,
+        "requestInterceptor": "(req) => { req.credentials = 'include'; return req; }"
+    },
     lifespan=lifespan
 )
 
