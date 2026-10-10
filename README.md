@@ -244,10 +244,5 @@ HRM-backend/
             └── user_mutations.py
 ```
 
----
 
-## 🚂 Railway CI/CD Deployment Rules
 
-- **Development**: Push/tag to `dev` → Deploys to Railway Dev Environment.
-- **Staging**: Push/tag to `stag` → Deploys to Railway Staging Environment.
-- **Production**: Push/tag to `prod` → Deploys to Railway Production Environment.
