@@ -1,0 +1,44 @@
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Python Bytecode & Cache Files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# SQLite & Local Database Files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs & Temporary Files
+*.log
+*.tmp
+temp/
+scratch/
+
+# IDE & Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
