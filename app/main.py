@@ -32,8 +32,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from strawberry.fastapi import GraphQLRouter
+from app.graphql.schema import schema
+from app.graphql.context import get_graphql_context
+
+# Mount GraphQL Endpoint & GraphiQL IDE
+graphql_app = GraphQLRouter(schema, context_getter=get_graphql_context)
+
 # Include Routers
 app.include_router(auth_router.router)
+app.include_router(graphql_app, prefix="/graphql", tags=["GraphQL IDE"])
 
 @app.get("/", tags=["Health Check"])
 async def root():
