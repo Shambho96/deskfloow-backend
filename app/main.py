@@ -3,8 +3,9 @@ from app.core.version_check import verify_python_version
 # Verify Python version on startup before initializing the application
 verify_python_version(abort_on_fail=True)
 
+import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from sqlalchemy import text
@@ -73,6 +74,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_response_time_middleware(request: Request, call_next):
+    start_time = time.perf_counter()
+    response = await call_next(request)
+    duration_ms = (time.perf_counter() - start_time) * 1000
+    response.headers["X-Process-Time-Ms"] = f"{duration_ms:.1f}"
+
+    # Log REST API routes with latency (GraphQL operations are logged by GraphQLLoggerExtension)
+    if not request.url.path.startswith("/graphql"):
+        print(f"[HTTP] {request.method} {request.url.path} -> {response.status_code} | {duration_ms:.1f}ms", flush=True)
+
+    return response
+
 
 from strawberry.fastapi import GraphQLRouter
 from app.graphql.schema import schema

@@ -1,3 +1,4 @@
+import time
 import logging
 from strawberry.extensions import SchemaExtension
 
@@ -5,10 +6,15 @@ logger = logging.getLogger("deskflow.graphql")
 
 class GraphQLLoggerExtension(SchemaExtension):
     """
-    Custom Strawberry GraphQL extension that logs compact query/mutation root field names.
-    Output Format: [GRAPHQL] query MyQuery { teamMembers | Context: user_id=1 (OWNER, outlet=1)
+    Custom Strawberry GraphQL extension that logs compact query/mutation root field names
+    and execution response time in milliseconds.
+    Output Format: [GRAPHQL] query MyQuery { teamMembers | Context: user_id=1 (OWNER, outlet=1) | 312.4ms
     """
     def on_operation(self):
+        start_time = time.perf_counter()
+        yield
+        duration_ms = (time.perf_counter() - start_time) * 1000
+
         ctx = self.execution_context
         raw_query = (ctx.query or "").strip()
         
@@ -35,5 +41,4 @@ class GraphQLLoggerExtension(SchemaExtension):
             u = ctx.context.user
             user_info = f"user_id={u.user_id} ({u.role}, outlet={u.outlet_id})"
 
-        print(f"[GRAPHQL] {snippet} | Context: {user_info}", flush=True)
-        yield
+        print(f"[GRAPHQL] {snippet} | Context: {user_info} | {duration_ms:.1f}ms", flush=True)
