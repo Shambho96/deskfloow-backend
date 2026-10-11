@@ -211,7 +211,7 @@ async def update_room_category(
     category_id: int,
     name: Optional[str] = None,
     code: Optional[str] = None,
-    base_price: Optional[_float] = None,
+    base_price: Optional[float] = None,
     max_adults: Optional[int] = None,
     max_children: Optional[int] = None,
     amenities: Optional[List[str]] = None,
