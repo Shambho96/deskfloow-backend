@@ -1,13 +1,21 @@
+from app.core.version_check import verify_python_version
+
+# Verify Python version on startup before initializing the application
+verify_python_version(abort_on_fail=True)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.config import settings
 from app.routers import auth_router
+from app.core.db_check import check_database_connection
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan context manager (startup & shutdown tasks)."""
     print(f"[INFO] Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode...")
+    await check_database_connection(abort_on_fail=False)
     yield
     print(f"[INFO] Shutting down {settings.APP_NAME}...")
 

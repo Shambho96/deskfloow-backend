@@ -112,10 +112,19 @@ python -m alembic upgrade head
 
 ## 🖥️ Running the Backend Server
 
-Start the Uvicorn development server with live reload:
+Start the Uvicorn development server with live reload (automatically validates that your Python version is >= 3.11 / Python 3.14):
 
 ```bash
 uvicorn app.main:app --reload --port 8000
+```
+
+*(Optional) You can run pre-flight system & database checks independently:*
+```bash
+# 1. Verify Python Runtime Version
+python -m app.core.version_check
+
+# 2. Verify Database Connection
+python -m app.core.db_check
 ```
 
 Once started, access the interactive interfaces:
