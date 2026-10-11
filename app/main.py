@@ -3,12 +3,32 @@ from app.core.version_check import verify_python_version
 # Verify Python version on startup before initializing the application
 verify_python_version(abort_on_fail=True)
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+import asyncio
+from sqlalchemy import text
 from app.config import settings
 from app.routers import auth_router
 from app.core.db_check import check_database_connection
+from app.db.session import engine
+
+
+async def _db_keepalive_worker(interval_seconds: int = 240):
+    """Background worker that pings the database every 4 minutes in development mode
+
+    to prevent Neon serverless compute instances from auto-suspending.
+    """
+    try:
+        while True:
+            await asyncio.sleep(interval_seconds)
+            try:
+                async with engine.connect() as conn:
+                    await conn.execute(text("SELECT 1"))
+            except Exception:
+                pass  # Keep-alive is best-effort
+    except asyncio.CancelledError:
+        pass
 
 
 @asynccontextmanager
@@ -16,7 +36,21 @@ async def lifespan(app: FastAPI):
     """Application lifespan context manager (startup & shutdown tasks)."""
     print(f"[INFO] Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode...")
     await check_database_connection(abort_on_fail=False)
+
+    keepalive_task = None
+    if settings.ENVIRONMENT == "development":
+        keepalive_task = asyncio.create_task(_db_keepalive_worker())
+        print("[INFO] Dev Keep-Alive Heartbeat activated (pings every 4m to prevent Neon sleep).")
+
     yield
+
+    if keepalive_task:
+        keepalive_task.cancel()
+        try:
+            await keepalive_task
+        except asyncio.CancelledError:
+            pass
+
     print(f"[INFO] Shutting down {settings.APP_NAME}...")
 
 app = FastAPI(

@@ -20,7 +20,18 @@ engine_kwargs = {
 }
 
 if "postgresql" in db_url:
-    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs.update({
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+        "pool_recycle": 300,  # Refresh idle connections before Neon / cloud firewalls drop them
+        "connect_args": {
+            "server_settings": {
+                "jit": "off",  # Disable Postgres JIT compilation overhead for fast OLTP queries
+                "application_name": "deskflow_pms"
+            }
+        }
+    })
 
 engine = create_async_engine(db_url, **engine_kwargs)
 
