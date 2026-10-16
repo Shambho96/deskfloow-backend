@@ -2,14 +2,43 @@ from fastapi import APIRouter, Depends, Response, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
-from app.models import Outlet
+from app.models import Outlet, UserClientOutletMapping
 from app.schemas.auth_schemas import LoginRequest, SwitchOutletRequest, AuthResponse, UserResponse
 from app.services.auth_service import authenticate_user, set_auth_cookie, clear_auth_cookie, get_user_outlets
 from app.core.dependencies import get_current_user_context
 from app.core.context import UserContext
 from app.core.security import create_jwt_token
+from typing import List
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
+
+
+class OutletInfo(BaseModel):
+    id: int
+    name: str
+    city: str
+
+
+@router.get("/outlets", response_model=List[OutletInfo])
+async def get_my_outlets(
+    ctx: UserContext = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns outlet details (id, name, city) for all outlets accessible by the current user."""
+    query = (
+        select(Outlet)
+        .join(UserClientOutletMapping, UserClientOutletMapping.outlet_id == Outlet.id)
+        .where(
+            UserClientOutletMapping.user_id == ctx.user_id,
+            Outlet.is_active == True
+        )
+        .order_by(Outlet.name.asc())
+    )
+    result = await db.execute(query)
+    outlets = result.scalars().all()
+    return [OutletInfo(id=int(o.id), name=o.name, city=o.city) for o in outlets]
+
 
 @router.post("/login", response_model=AuthResponse)
 async def login(
