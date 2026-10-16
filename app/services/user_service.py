@@ -1,3 +1,4 @@
+import math
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from fastapi import HTTPException, status
@@ -122,10 +123,12 @@ async def list_team_members(
     role: Optional[str] = None,
     search: Optional[str] = None,
     is_active: bool = True,
-    all_outlets: bool = False
-) -> List[UserMemberResponse]:
+    all_outlets: bool = False,
+    page: int = 1,
+    page_size: int = 10
+) -> Dict[str, Any]:
     """
-    Lists team members scoped by client and active outlet context.
+    Lists team members scoped by client and active outlet context with server-side pagination.
     - Default: Scoped to active property (ctx.outlet_id).
     - If all_outlets=True and role=OWNER: Lists across all client outlets.
     """
@@ -135,30 +138,51 @@ async def list_team_members(
             detail="Staff members are not permitted to view member directory."
         )
 
-    # Base query for users in this client, excluding the logged-in user self
-    query = (
-        select(User, func.array_agg(UserClientOutletMapping.outlet_id).label("assigned_outlets"))
-        .join(UserClientOutletMapping, User.id == UserClientOutletMapping.user_id)
-        .where(
-            User.client_id == ctx.client_id,
-            User.id != ctx.user_id,
-            User.is_active == is_active
-        )
-        .group_by(User.id)
-    )
+    # Sanitize pagination inputs
+    page_num = max(1, page)
+    limit_num = max(1, min(page_size, 100))
+
+    where_conditions = [
+        User.client_id == ctx.client_id,
+        User.id != ctx.user_id,
+        User.is_active == is_active
+    ]
 
     # Filter by outlet context (unless OWNER requested all_outlets=True)
     if not (all_outlets and ctx.role == "OWNER"):
-        query = query.where(UserClientOutletMapping.outlet_id == ctx.outlet_id)
+        where_conditions.append(UserClientOutletMapping.outlet_id == ctx.outlet_id)
 
     # Filter by role
     if role:
-        query = query.where(User.role == role.upper())
+        where_conditions.append(User.role == role.upper())
 
     # Filter by search string
     if search:
         search_term = f"%{search.strip()}%"
-        query = query.where(or_(User.name.ilike(search_term), User.email.ilike(search_term)))
+        where_conditions.append(or_(User.name.ilike(search_term), User.email.ilike(search_term)))
+
+    # 1. Count query for total matching records
+    count_query = (
+        select(func.count(func.distinct(User.id)))
+        .join(UserClientOutletMapping, User.id == UserClientOutletMapping.user_id)
+        .where(*where_conditions)
+    )
+    count_res = await db.execute(count_query)
+    total = count_res.scalar() or 0
+
+    # 2. Paginated query
+    total_pages = math.ceil(total / limit_num) if total > 0 else 1
+    offset = (page_num - 1) * limit_num
+
+    query = (
+        select(User, func.array_agg(UserClientOutletMapping.outlet_id).label("assigned_outlets"))
+        .join(UserClientOutletMapping, User.id == UserClientOutletMapping.user_id)
+        .where(*where_conditions)
+        .group_by(User.id)
+        .order_by(User.id.desc())
+        .offset(offset)
+        .limit(limit_num)
+    )
 
     result = await db.execute(query)
     rows = result.all()
@@ -181,7 +205,15 @@ async def list_team_members(
             )
         )
 
-    return members
+    return {
+        "total": total,
+        "page": page_num,
+        "page_size": limit_num,
+        "total_pages": total_pages,
+        "has_next": page_num < total_pages,
+        "has_prev": page_num > 1,
+        "users": members
+    }
 
 async def get_team_member_by_id(
     db: AsyncSession,
