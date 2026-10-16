@@ -10,7 +10,8 @@ class Settings(BaseSettings):
 
     JWT_SECRET: str = "deskflow_super_secret_jwt_key_2026_change_in_production"
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     PII_SECRET_KEY: str = "c3VwZXJfc2VjcmV0X3BpaV9rZXlfMzJfYnl0ZXNfbG9uZw=="
 

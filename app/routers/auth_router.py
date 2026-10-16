@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, Response, HTTPException, status
+from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
 from app.models import Outlet, UserClientOutletMapping
 from app.schemas.auth_schemas import LoginRequest, SwitchOutletRequest, AuthResponse, UserResponse
-from app.services.auth_service import authenticate_user, set_auth_cookie, clear_auth_cookie, get_user_outlets
+from app.services.auth_service import authenticate_user, set_auth_cookie, clear_auth_cookie, get_user_outlets, refresh_user_session
 from app.core.dependencies import get_current_user_context
 from app.core.context import UserContext
 from app.core.security import create_jwt_token
@@ -58,15 +58,56 @@ async def login(
     )
 
     token = result["token"]
+    refresh_token = result.get("refresh_token")
     ctx: UserContext = result["user_context"]
 
-    # Set HttpOnly Cookie
-    set_auth_cookie(response, token)
+    # Set HttpOnly Cookies (both access and refresh)
+    set_auth_cookie(response, token, refresh_token)
 
     return AuthResponse(
         status="success",
         message="Login successful",
         access_token=token,
+        user=UserResponse(
+            id=ctx.user_id,
+            name=ctx.name or "",
+            email=ctx.email or "",
+            role=ctx.role,
+            client_id=ctx.client_id,
+            active_outlet_id=ctx.outlet_id,
+            allowed_outlets=ctx.allowed_outlets
+        )
+    )
+
+@router.post("/refresh", response_model=AuthResponse)
+async def refresh_session(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Refreshes an expired access token using the long-lived HttpOnly refresh_token cookie.
+    Ensures seamless continuous sessions without forcing the user to re-login.
+    """
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token found. Please sign in again."
+        )
+
+    result = await refresh_user_session(db, refresh_token)
+    new_access_token = result["access_token"]
+    new_refresh_token = result.get("refresh_token")
+    ctx: UserContext = result["user_context"]
+
+    # Renew HttpOnly cookies
+    set_auth_cookie(response, new_access_token, new_refresh_token)
+
+    return AuthResponse(
+        status="success",
+        message="Session refreshed successfully",
+        access_token=new_access_token,
         user=UserResponse(
             id=ctx.user_id,
             name=ctx.name or "",

@@ -25,14 +25,27 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 def create_jwt_token(payload: Dict[str, Any], expires_minutes: Optional[int] = None) -> str:
-    """Generates a signed JWT token."""
+    """Generates a signed JWT Access token."""
     to_encode = payload.copy()
     if "sub" in to_encode and to_encode["sub"] is not None:
         to_encode["sub"] = str(to_encode["sub"])
+    if "type" not in to_encode:
+        to_encode["type"] = "access"
     expire_delta = timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     expire = datetime.now(timezone.utc) + expire_delta
     to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc)})
     return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+
+def create_refresh_token(user_id: Any) -> str:
+    """Generates a signed Refresh JWT token."""
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {
+        "sub": str(user_id),
+        "type": "refresh",
+        "exp": expire,
+        "iat": datetime.now(timezone.utc)
+    }
+    return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 def decode_jwt_token(token: str) -> Optional[Dict[str, Any]]:
     """Decodes and validates a signed JWT token."""
