@@ -39,3 +39,13 @@ class CreateUserInput:
     role: str
     assigned_outlet_ids: Optional[List[int]] = None
     password: Optional[str] = None
+
+@strawberry.input
+class UpdateUserInput:
+    user_id: int
+    name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: Optional[str] = None
+    assigned_outlet_ids: Optional[List[int]] = None
+    password: Optional[str] = None

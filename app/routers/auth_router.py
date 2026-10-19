@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Response, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
-from app.models import Outlet, UserClientOutletMapping
+from app.models import Outlet, UserClientOutletMapping, User
 from app.schemas.auth_schemas import LoginRequest, SwitchOutletRequest, AuthResponse, UserResponse
 from app.services.auth_service import authenticate_user, set_auth_cookie, clear_auth_cookie, get_user_outlets, refresh_user_session
 from app.core.dependencies import get_current_user_context
@@ -126,14 +126,29 @@ async def logout(response: Response):
     return {"status": "success", "message": "Logged out successfully"}
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(ctx: UserContext = Depends(get_current_user_context)):
-    """Returns currently authenticated user profile & tenant context."""
+async def get_me(
+    response: Response,
+    ctx: UserContext = Depends(get_current_user_context),
+    db: AsyncSession = Depends(get_db)
+):
+    """Returns currently authenticated user profile & tenant context after verifying active status."""
+    query = select(User).where(User.id == ctx.user_id)
+    result = await db.execute(query)
+    user = result.scalars().first()
+
+    if not user or not user.is_active:
+        clear_auth_cookie(response)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your account has been deactivated. Please contact your administrator."
+        )
+
     return UserResponse(
-        id=ctx.user_id,
-        name=ctx.name or "",
-        email=ctx.email or "",
-        role=ctx.role,
-        client_id=ctx.client_id,
+        id=user.id,
+        name=user.name or ctx.name or "",
+        email=user.email or ctx.email or "",
+        role=user.role,
+        client_id=user.client_id,
         active_outlet_id=ctx.outlet_id,
         allowed_outlets=ctx.allowed_outlets
     )

@@ -1,6 +1,9 @@
 from fastapi import Request, HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
+from sqlalchemy import select
+from app.db.session import AsyncSessionLocal
+from app.models import User
 from app.core.security import decode_jwt_token
 from app.core.context import UserContext
 
@@ -14,6 +17,7 @@ async def get_current_user_context(
     """
     FastAPI dependency extracting UserContext from HttpOnly cookie or Authorization header.
     Runs on every protected REST API request.
+    Strictly verifies active account status against the database.
     """
     candidates = []
     if auth_credentials and auth_credentials.credentials:
@@ -47,6 +51,17 @@ async def get_current_user_context(
 
         raw_sub = payload.get("sub")
         user_id = int(raw_sub) if str(raw_sub).isdigit() else raw_sub
+
+        # Strict active account check against database
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(User.is_active).where(User.id == user_id))
+            is_active = result.scalar_one_or_none()
+
+        if is_active is not True:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Your account has been deactivated. Please contact your administrator."
+            )
 
         return UserContext(
             user_id=user_id,

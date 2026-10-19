@@ -15,7 +15,7 @@ class UserQuery:
         info: Info,
         role: Optional[str] = None,
         search: Optional[str] = None,
-        is_active: bool = True,
+        is_active: Optional[bool] = None,
         all_outlets: bool = False,
         page: int = 1,
         page_size: int = 10

@@ -1,6 +1,6 @@
 import math
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, delete
 from fastapi import HTTPException, status
 from typing import Optional, List, Dict, Any, Union
 from app.models import User, UserClientOutletMapping, Outlet
@@ -38,13 +38,26 @@ async def create_team_member(
             detail="Managers are restricted to creating STAFF members only."
         )
 
-    # Determine login capability
-    can_login = (role_upper in ("MANAGER", "OWNER"))
-    if can_login and not req.password:
+    # WhatsApp / Phone number is required for both Manager and Staff
+    if not req.phone or not req.phone.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password is required for Manager or Owner accounts with web login access."
+            detail="WhatsApp / Phone number is required."
         )
+
+    # Determine login capability
+    can_login = (role_upper in ("MANAGER", "OWNER"))
+    if can_login:
+        if not req.email or not req.email.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email address is required for Manager accounts."
+            )
+        if not req.password or len(req.password.strip()) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password (minimum 6 characters) is required for Manager accounts."
+            )
 
     # 2. Outlet Permission Scoping: Strictly assign member to creator's active outlet (ctx.outlet_id)
     target_outlet_id = int(ctx.outlet_id)
@@ -122,7 +135,7 @@ async def list_team_members(
     ctx: UserContext,
     role: Optional[str] = None,
     search: Optional[str] = None,
-    is_active: bool = True,
+    is_active: Optional[bool] = None,
     all_outlets: bool = False,
     page: int = 1,
     page_size: int = 10
@@ -131,6 +144,7 @@ async def list_team_members(
     Lists team members scoped by client and active outlet context with server-side pagination.
     - Default: Scoped to active property (ctx.outlet_id).
     - If all_outlets=True and role=OWNER: Lists across all client outlets.
+    - If is_active is None: Returns all members (both active and deactivated).
     """
     if ctx.role == "STAFF":
         raise HTTPException(
@@ -145,15 +159,22 @@ async def list_team_members(
     where_conditions = [
         User.client_id == ctx.client_id,
         User.id != ctx.user_id,
-        User.is_active == is_active
     ]
+
+    # Only filter by is_active if explicitly requested (True or False).
+    # If is_active is None (default "All Status"), return BOTH active and deactivated users.
+    if is_active is not None:
+        where_conditions.append(User.is_active == is_active)
 
     # Filter by outlet context (unless OWNER requested all_outlets=True)
     if not (all_outlets and ctx.role == "OWNER"):
         where_conditions.append(UserClientOutletMapping.outlet_id == ctx.outlet_id)
 
-    # Filter by role
-    if role:
+    # Filter by role & enforce Manager visibility
+    if ctx.role == "MANAGER":
+        # Managers can only see Staff members, never Owners or other Managers
+        where_conditions.append(User.role == "STAFF")
+    elif role:
         where_conditions.append(User.role == role.upper())
 
     # Filter by search string
@@ -293,3 +314,162 @@ async def toggle_team_member_status(
 
     action = "activated" if is_active else "deactivated"
     return {"status": "success", "message": f"User '{target_user.name}' has been {action} successfully."}
+
+async def update_team_member(
+    db: AsyncSession,
+    ctx: UserContext,
+    user_id: Union[int, str],
+    req: UserUpdateRequest
+) -> UserMemberResponse:
+    """
+    Updates an existing team member profile, role, password, and outlet assignment.
+    - OWNER: Can update any MANAGER or STAFF member.
+    - MANAGER: Can ONLY update STAFF members assigned to their active outlet.
+    """
+    if ctx.role == "STAFF":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff members are not permitted to modify team members."
+        )
+
+    # 1. Fetch Target User
+    query = (
+        select(User, func.array_agg(UserClientOutletMapping.outlet_id).label("assigned_outlets"))
+        .join(UserClientOutletMapping, User.id == UserClientOutletMapping.user_id)
+        .where(User.id == user_id, User.client_id == ctx.client_id)
+        .group_by(User.id)
+    )
+    result = await db.execute(query)
+    row = result.first()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Team member with ID '{user_id}' not found."
+        )
+
+    target_user, current_assigned_outlets = row
+
+    # 2. RBAC Permissions
+    if ctx.role == "MANAGER":
+        if target_user.role in ("MANAGER", "OWNER"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Managers cannot modify Manager or Owner accounts."
+            )
+        if req.role and req.role.strip().upper() != "STAFF":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Managers are restricted to managing Staff members only."
+            )
+    elif ctx.role == "OWNER":
+        if target_user.role == "OWNER" and target_user.id != ctx.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Cannot modify other Owner accounts."
+            )
+
+    # 3. Update Name
+    if req.name is not None and req.name.strip():
+        target_user.name = req.name.strip()
+
+    # 4. Update Email
+    if req.email is not None:
+        email_clean = req.email.strip().lower() if req.email.strip() else None
+        if email_clean and email_clean != target_user.email:
+            existing_user_query = select(User).where(User.email == email_clean, User.id != target_user.id)
+            existing_res = await db.execute(existing_user_query)
+            if existing_res.scalars().first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"An account with email '{email_clean}' already exists."
+                )
+            target_user.email = email_clean
+
+    # 5. Update Phone (Must not be empty)
+    if req.phone is not None:
+        phone_clean = req.phone.strip()
+        if not phone_clean:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="WhatsApp / Phone number is required."
+            )
+        target_user.phone_encrypted = encrypt_phone(phone_clean)
+        target_user.phone_hash = hash_phone_blind(phone_clean)
+
+    # 6. Update Role
+    role_upper = target_user.role
+    if req.role is not None and req.role.strip():
+        role_upper = req.role.strip().upper()
+        if role_upper not in ("MANAGER", "STAFF"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role must be either 'MANAGER' or 'STAFF'."
+            )
+        target_user.role = role_upper
+        target_user.can_login = (role_upper in ("MANAGER", "OWNER"))
+
+    # 7. Update Password & Validate Manager Requirements
+    if role_upper == "MANAGER":
+        if not target_user.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is required for Manager accounts."
+            )
+
+    if req.password is not None and req.password.strip():
+        if len(req.password.strip()) < 6:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 6 characters."
+            )
+        target_user.password_hash = hash_password(req.password.strip())
+    elif role_upper == "MANAGER" and not target_user.can_login:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is required when promoting a member to Manager."
+        )
+
+    # 8. Update Outlet Mappings (if provided)
+    updated_outlet_ids = current_assigned_outlets or []
+    if req.assigned_outlet_ids is not None:
+        target_outlet_ids = [int(oid) for oid in req.assigned_outlet_ids if str(oid).isdigit()]
+        if not target_outlet_ids:
+            target_outlet_ids = [int(ctx.outlet_id)]
+
+        if ctx.role == "MANAGER":
+            target_outlet_ids = [int(ctx.outlet_id)]
+
+        # Delete existing outlet mappings
+        del_stmt = delete(UserClientOutletMapping).where(UserClientOutletMapping.user_id == target_user.id)
+        await db.execute(del_stmt)
+
+        # Add new mappings
+        for idx, oid in enumerate(target_outlet_ids):
+            mapping = UserClientOutletMapping(
+                user_id=target_user.id,
+                client_id=ctx.client_id,
+                outlet_id=oid,
+                is_primary=(idx == 0)
+            )
+            db.add(mapping)
+        updated_outlet_ids = target_outlet_ids
+
+    await db.commit()
+    await db.refresh(target_user)
+
+    decrypted_phone = decrypt_phone(target_user.phone_encrypted) if target_user.phone_encrypted else ""
+
+    return UserMemberResponse(
+        id=target_user.id,
+        name=target_user.name,
+        email=target_user.email,
+        phone=decrypted_phone,
+        role=target_user.role,
+        client_id=target_user.client_id,
+        can_login=target_user.can_login,
+        is_active=target_user.is_active,
+        assigned_outlet_ids=updated_outlet_ids,
+        created_at=target_user.created_at
+    )
+

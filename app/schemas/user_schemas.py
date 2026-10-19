@@ -14,6 +14,7 @@ class UserUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=2, max_length=100)
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
+    role: Optional[str] = Field(None, description="Role: MANAGER or STAFF")
     assigned_outlet_ids: Optional[List[Union[int, str]]] = None
     password: Optional[str] = Field(None, min_length=6)
 

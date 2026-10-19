@@ -9,7 +9,7 @@ from app.config import settings
 
 async def get_user_by_email(db: AsyncSession, email: str) -> Optional[User]:
     """Fetches user by email from database."""
-    query = select(User).where(User.email == email, User.is_active == True)
+    query = select(User).where(User.email == email)
     result = await db.execute(query)
     return result.scalars().first()
 
@@ -54,6 +54,13 @@ async def authenticate_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
+        )
+
+    # STRICT ACCOUNT DEACTIVATION GUARD: Block deactivated users from logging in
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account has been deactivated. Please contact your administrator."
         )
 
     # STRICT LOGIN GUARD: Block STAFF accounts from web login
