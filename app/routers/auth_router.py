@@ -86,23 +86,57 @@ async def refresh_session(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Refreshes an expired access token using the long-lived HttpOnly refresh_token cookie.
+    Refreshes an expired access token using the long-lived HttpOnly refresh_token cookie,
+    X-Refresh-Token header, or Authorization header.
     Ensures seamless continuous sessions without forcing the user to re-login.
     """
     refresh_token = request.cookies.get("refresh_token")
+
+    # Fallback 1: Custom header X-Refresh-Token
     if not refresh_token:
+        refresh_token = request.headers.get("X-Refresh-Token")
+
+    # Fallback 2: Authorization: Bearer <refresh_token>
+    if not refresh_token:
+        auth_hdr = request.headers.get("Authorization")
+        if auth_hdr and auth_hdr.lower().startswith("bearer "):
+            refresh_token = auth_hdr.split(" ", 1)[1].strip()
+
+    # Fallback 3: JSON body { "refresh_token": "..." }
+    if not refresh_token:
+        try:
+            body = await request.json()
+            if isinstance(body, dict):
+                refresh_token = body.get("refresh_token")
+        except Exception:
+            pass
+
+    if not refresh_token:
+        print("[AUTH_REFRESH] ❌ No refresh token found in cookies, headers, or body.", flush=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="No refresh token found. Please sign in again."
         )
 
-    result = await refresh_user_session(db, refresh_token)
+    try:
+        result = await refresh_user_session(db, refresh_token)
+    except HTTPException as exc:
+        print(f"[AUTH_REFRESH] ❌ refresh_user_session failed: {exc.detail}", flush=True)
+        raise exc
+    except Exception as exc:
+        print(f"[AUTH_REFRESH] ❌ Unexpected refresh error: {str(exc)}", flush=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to refresh session due to server error."
+        )
+
     new_access_token = result["access_token"]
     new_refresh_token = result.get("refresh_token")
     ctx: UserContext = result["user_context"]
 
     # Renew HttpOnly cookies
     set_auth_cookie(response, new_access_token, new_refresh_token)
+    print(f"[AUTH_REFRESH] ✅ Successfully refreshed session for user {ctx.user_id} ({ctx.email})", flush=True)
 
     return AuthResponse(
         status="success",
