@@ -1,6 +1,8 @@
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, func, BigInteger, Integer
 from datetime import datetime
+
+BigIntPK = BigInteger().with_variant(Integer, "sqlite")
 
 class Base(DeclarativeBase):
     """Base Declarative Class for all SQLAlchemy models."""
