@@ -1,0 +1,30 @@
+services:
+  app:
+    image: ${ECR_REGISTRY}/${REPO_NAME}:${IMAGE_TAG:-staging}
+    container_name: deskflow-backend-staging
+    labels:
+      service: "deskflow-backend"
+      environment: "staging"
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    env_file:
+      - /home/ubuntu/.deskflow-staging-env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M

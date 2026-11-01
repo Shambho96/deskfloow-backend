@@ -102,6 +102,7 @@ app.include_router(auth_router.router)
 app.include_router(graphql_app, prefix="/graphql", tags=["GraphQL IDE"])
 
 @app.get("/", tags=["Health Check"])
+@app.get("/health", tags=["Health Check"])
 async def root():
     return {
         "status": "online",

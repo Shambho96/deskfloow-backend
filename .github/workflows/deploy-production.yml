@@ -1,0 +1,94 @@
+name: DeskFlow Production Deployment
+
+on:
+  push:
+    tags: [ 'v*', 'prod-*' ]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.slug.outputs.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get Short SHA
+        id: slug
+        run: echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: ${{ steps.slug.outputs.sha }}
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --cache-from type=gha \
+            --cache-to type=gha,mode=max \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            --push .
+
+      - name: Create Deployment Package
+        env:
+          IMAGE_TAG: ${{ steps.slug.outputs.sha }}
+        run: |
+          cp appspec.prod.yml appspec.yml
+          echo "IMAGE_TAG=$IMAGE_TAG" > deploy.env
+          echo "REPO_NAME=${{ secrets.ECR_REPOSITORY }}" >> deploy.env
+          echo "ENVIRONMENT=prod" >> deploy.env
+          zip -r deployment.zip appspec.yml scripts/ docker-compose.prod.yml deploy.env
+
+      - name: Upload Deployment Package
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-package-prod
+          path: deployment.zip
+          retention-days: 1
+
+  deploy-production:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Deployment Package
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-package-prod
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload to S3
+        run: aws s3 cp deployment.zip s3://${{ secrets.S3_BUCKET }}/deskflow-backend-prod.zip
+
+      - name: Trigger CodeDeploy
+        run: |
+          aws deploy create-deployment \
+            --application-name ${{ secrets.CODEDEPLOY_APPLICATION }} \
+            --deployment-group-name deskflow-backend-prod-dg \
+            --s3-location bucket=${{ secrets.S3_BUCKET }},key=deskflow-backend-prod.zip,bundleType=zip

@@ -7,6 +7,12 @@ from app.models.floor import Floor
 from app.models.room_category import RoomCategory
 from app.models.room import Room
 from app.models.utility import Utility
+from app.models.guest import Guest
+from app.models.reservation import Reservation
+from app.models.folio import GuestFolio, FolioLineItem, FolioPayment
+from app.models.idempotency import IdempotencyKey
+from app.models.housekeeping import HousekeepingTask, MaintenanceTicket
+from app.models.audit_log import OperationalAuditLog
 
 __all__ = [
     'Client',
@@ -17,6 +23,14 @@ __all__ = [
     'Floor',
     'RoomCategory',
     'Room',
-    'Utility'
+    'Utility',
+    'Guest',
+    'Reservation',
+    'GuestFolio',
+    'FolioLineItem',
+    'FolioPayment',
+    'IdempotencyKey',
+    'HousekeepingTask',
+    'MaintenanceTicket',
+    'OperationalAuditLog'
 ]
-
