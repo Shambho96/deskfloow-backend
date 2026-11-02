@@ -6,6 +6,7 @@ from decimal import Decimal
 
 from app.graphql.types.room_types import BuildingPayloadType, RoomType
 
+
 @strawberry.enum
 class BookingSourceEnum(str, Enum):
     WALKIN = "WALKIN"
@@ -13,6 +14,7 @@ class BookingSourceEnum(str, Enum):
     WHATSAPP = "WHATSAPP"
     WEBSITE = "WEBSITE"
     OTHER = "OTHER"
+
 
 @strawberry.enum
 class ReservationStatusEnum(str, Enum):
@@ -22,6 +24,7 @@ class ReservationStatusEnum(str, Enum):
     CANCELLED = "CANCELLED"
     NO_SHOW = "NO_SHOW"
 
+
 @strawberry.enum
 class PaymentMethodEnum(str, Enum):
     CASH = "CASH"
@@ -29,6 +32,7 @@ class PaymentMethodEnum(str, Enum):
     DEBIT_CARD = "DEBIT_CARD"
     UPI_QR = "UPI_QR"
     BANK_TRANSFER = "BANK_TRANSFER"
+
 
 @strawberry.type
 class GuestType:
@@ -41,10 +45,13 @@ class GuestType:
     id_number: Optional[str] = None
     vip_status: str = "STANDARD"
     nationality: str = "Indian"
+    booking_source: Optional[str] = None
+    special_requests: List[str] = strawberry.field(default_factory=list)
 
     @strawberry.field
     def full_name(self) -> str:
         return f"{self.first_name} {self.last_name}".strip()
+
 
 @strawberry.type
 class FolioLineItemType:
@@ -58,6 +65,7 @@ class FolioLineItemType:
     total_amount: float
     posted_at: str
 
+
 @strawberry.type
 class FolioPaymentType:
     id: int
@@ -67,6 +75,7 @@ class FolioPaymentType:
     status: str
     receipt_number: Optional[str] = None
     payment_date: str
+
 
 @strawberry.type
 class GuestFolioType:
@@ -81,6 +90,7 @@ class GuestFolioType:
     balance_due: float
     line_items: List[FolioLineItemType]
     payments: List[FolioPaymentType]
+
 
 @strawberry.type
 class ReservationType:
@@ -107,6 +117,7 @@ class ReservationType:
     balance_due: float
     guest: GuestType
 
+
 @strawberry.type
 class OperationsBoardRoomType:
     id: int
@@ -118,6 +129,7 @@ class OperationsBoardRoomType:
     computed_status: str  # AVAILABLE, RESERVED, OCCUPIED, OOO
     active_reservation: Optional[ReservationType] = None
 
+
 @strawberry.type
 class OccupancySummaryType:
     total_rooms: int
@@ -128,12 +140,14 @@ class OccupancySummaryType:
     booked_count: int
     occupancy_percentage: float
 
+
 @strawberry.type
 class OperationsBoardPayload:
     date: str
     summary: OccupancySummaryType
     buildings: List[BuildingPayloadType]
     rooms: List[OperationsBoardRoomType]
+
 
 @strawberry.type
 class OperationsKanbanPayload:
@@ -142,12 +156,14 @@ class OperationsKanbanPayload:
     departures: List[ReservationType]
     settled: List[ReservationType]
 
+
 @strawberry.type
 class OperationsTapeChartPayload:
     start_date: str
     days_count: int
     rooms: List[OperationsBoardRoomType]
     reservations: List[ReservationType]
+
 
 @strawberry.type
 class HousekeepingTaskType:
@@ -161,6 +177,7 @@ class HousekeepingTaskType:
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
 
+
 @strawberry.type
 class HousekeepingBoardPayload:
     dirty_count: int
@@ -169,20 +186,25 @@ class HousekeepingBoardPayload:
     ooo_count: int
     tasks: List[HousekeepingTaskType]
 
+
 # ==============================================================================
 # INPUTS
 # ==============================================================================
 
+
 @strawberry.input
 class CreateReservationInput:
     category_id: int
-    check_in_date: str   # YYYY-MM-DD
+    check_in_date: str  # YYYY-MM-DD
     check_out_date: str  # YYYY-MM-DD
     room_id: Optional[int] = None
     guest_first_name: str
     guest_last_name: str
     guest_phone: str
     guest_email: Optional[str] = None
+    id_type: Optional[str] = None
+    id_number: Optional[str] = None
+    special_requests: Optional[List[str]] = None
     booking_source: Optional[BookingSourceEnum] = BookingSourceEnum.WALKIN
     adults_count: Optional[int] = 1
     children_count: Optional[int] = 0
@@ -192,6 +214,7 @@ class CreateReservationInput:
     transaction_ref: Optional[str] = None
     eta: Optional[str] = None
     idempotency_key: Optional[str] = None
+
 
 @strawberry.input
 class SettlePaymentInput:

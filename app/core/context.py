@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List, Union
 
+
 class UserContext(BaseModel):
     user_id: Union[int, str]
     client_id: Union[int, str]

@@ -30,3 +30,38 @@ dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+exclude = [
+    ".git",
+    ".venv",
+    "alembic",
+]
+
+[tool.ruff.lint]
+select = [
+    "E9",   # Syntax and runtime fatal errors
+    "F63",  # Assert tests
+    "F7",   # Undefined names in syntax
+    "F82",  # Undefined names
+    "F401", # Unused imports
+    "F841", # Unused variables
+    "E",    # Pycodestyle errors
+    "W",    # Pycodestyle warnings
+]
+ignore = [
+    "E501", # Line length (managed by ruff formatter)
+    "E402", # Module level import not at top of file
+    "F401", # Ignore unused imports in __init__.py / re-exports
+    "W291", # Trailing whitespace
+    "W293", # Blank line contains whitespace
+    "E712", # Comparison to True (standard in SQLAlchemy queries)
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"

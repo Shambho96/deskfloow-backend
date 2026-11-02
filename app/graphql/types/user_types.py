@@ -2,6 +2,7 @@ import strawberry
 from typing import Optional, List
 from datetime import datetime
 
+
 @strawberry.type
 class UserType:
     id: int
@@ -15,6 +16,7 @@ class UserType:
     assigned_outlet_ids: List[int]
     created_at: str
 
+
 @strawberry.type
 class UserListPayload:
     status: str
@@ -26,10 +28,12 @@ class UserListPayload:
     has_prev: bool
     users: List[UserType]
 
+
 @strawberry.type
 class StatusPayload:
     status: str
     message: str
+
 
 @strawberry.input
 class CreateUserInput:
@@ -39,6 +43,7 @@ class CreateUserInput:
     role: str
     assigned_outlet_ids: Optional[List[int]] = None
     password: Optional[str] = None
+
 
 @strawberry.input
 class UpdateUserInput:

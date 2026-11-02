@@ -3,8 +3,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.db.session import get_db
 from app.models import Outlet, UserClientOutletMapping, User
-from app.schemas.auth_schemas import LoginRequest, SwitchOutletRequest, AuthResponse, UserResponse
-from app.services.auth_service import authenticate_user, set_auth_cookie, clear_auth_cookie, get_user_outlets, refresh_user_session
+from app.schemas.auth_schemas import (
+    LoginRequest,
+    SwitchOutletRequest,
+    AuthResponse,
+    UserResponse,
+)
+from app.services.auth_service import (
+    authenticate_user,
+    set_auth_cookie,
+    clear_auth_cookie,
+    get_user_outlets,
+    refresh_user_session,
+)
 from app.core.dependencies import get_current_user_context
 from app.core.context import UserContext
 from app.core.security import create_jwt_token
@@ -23,16 +34,13 @@ class OutletInfo(BaseModel):
 @router.get("/outlets", response_model=List[OutletInfo])
 async def get_my_outlets(
     ctx: UserContext = Depends(get_current_user_context),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Returns outlet details (id, name, city) for all outlets accessible by the current user."""
     query = (
         select(Outlet)
         .join(UserClientOutletMapping, UserClientOutletMapping.outlet_id == Outlet.id)
-        .where(
-            UserClientOutletMapping.user_id == ctx.user_id,
-            Outlet.is_active == True
-        )
+        .where(UserClientOutletMapping.user_id == ctx.user_id, Outlet.is_active == True)
         .order_by(Outlet.name.asc())
     )
     result = await db.execute(query)
@@ -41,20 +49,16 @@ async def get_my_outlets(
 
 
 @router.post("/login", response_model=AuthResponse)
-async def login(
-    request: LoginRequest,
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
+async def login(request: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
     """
-    User login endpoint. Validates credentials, checks Staff Login Guard, 
+    User login endpoint. Validates credentials, checks Staff Login Guard,
     sets HttpOnly secure access_token cookie, and returns access_token.
     """
     result = await authenticate_user(
         db=db,
         email=request.email,
         password=request.password,
-        target_outlet_id=request.selected_outlet_id
+        target_outlet_id=request.selected_outlet_id,
     )
 
     token = result["token"]
@@ -75,16 +79,13 @@ async def login(
             role=ctx.role,
             client_id=ctx.client_id,
             active_outlet_id=ctx.outlet_id,
-            allowed_outlets=ctx.allowed_outlets
-        )
+            allowed_outlets=ctx.allowed_outlets,
+        ),
     )
 
+
 @router.post("/refresh", response_model=AuthResponse)
-async def refresh_session(
-    request: Request,
-    response: Response,
-    db: AsyncSession = Depends(get_db)
-):
+async def refresh_session(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """
     Refreshes an expired access token using the long-lived HttpOnly refresh_token cookie,
     X-Refresh-Token header, or Authorization header.
@@ -112,10 +113,13 @@ async def refresh_session(
             pass
 
     if not refresh_token:
-        print("[AUTH_REFRESH] ❌ No refresh token found in cookies, headers, or body.", flush=True)
+        print(
+            "[AUTH_REFRESH] ❌ No refresh token found in cookies, headers, or body.",
+            flush=True,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No refresh token found. Please sign in again."
+            detail="No refresh token found. Please sign in again.",
         )
 
     try:
@@ -127,7 +131,7 @@ async def refresh_session(
         print(f"[AUTH_REFRESH] ❌ Unexpected refresh error: {str(exc)}", flush=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to refresh session due to server error."
+            detail="Failed to refresh session due to server error.",
         )
 
     new_access_token = result["access_token"]
@@ -136,7 +140,10 @@ async def refresh_session(
 
     # Renew HttpOnly cookies
     set_auth_cookie(response, new_access_token, new_refresh_token)
-    print(f"[AUTH_REFRESH] ✅ Successfully refreshed session for user {ctx.user_id} ({ctx.email})", flush=True)
+    print(
+        f"[AUTH_REFRESH] ✅ Successfully refreshed session for user {ctx.user_id} ({ctx.email})",
+        flush=True,
+    )
 
     return AuthResponse(
         status="success",
@@ -149,9 +156,10 @@ async def refresh_session(
             role=ctx.role,
             client_id=ctx.client_id,
             active_outlet_id=ctx.outlet_id,
-            allowed_outlets=ctx.allowed_outlets
-        )
+            allowed_outlets=ctx.allowed_outlets,
+        ),
     )
+
 
 @router.post("/logout")
 async def logout(response: Response):
@@ -159,11 +167,12 @@ async def logout(response: Response):
     clear_auth_cookie(response)
     return {"status": "success", "message": "Logged out successfully"}
 
+
 @router.get("/me", response_model=UserResponse)
 async def get_me(
     response: Response,
     ctx: UserContext = Depends(get_current_user_context),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Returns currently authenticated user profile & tenant context after verifying active status."""
     query = select(User).where(User.id == ctx.user_id)
@@ -174,7 +183,7 @@ async def get_me(
         clear_auth_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Your account has been deactivated. Please contact your administrator."
+            detail="Your account has been deactivated. Please contact your administrator.",
         )
 
     return UserResponse(
@@ -184,15 +193,16 @@ async def get_me(
         role=user.role,
         client_id=user.client_id,
         active_outlet_id=ctx.outlet_id,
-        allowed_outlets=ctx.allowed_outlets
+        allowed_outlets=ctx.allowed_outlets,
     )
+
 
 @router.post("/switch-outlet", response_model=AuthResponse)
 async def switch_outlet(
     request: SwitchOutletRequest,
     response: Response,
     ctx: UserContext = Depends(get_current_user_context),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Switches active hotel outlet for multi-outlet managers/owners."""
     active_outlets = await get_user_outlets(db, ctx.user_id)
@@ -200,7 +210,7 @@ async def switch_outlet(
     if request.target_outlet_id not in active_outlets and ctx.role != "OWNER":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied to outlet '{request.target_outlet_id}'"
+            detail=f"Access denied to outlet '{request.target_outlet_id}'",
         )
 
     # Verify target outlet is active in database
@@ -210,7 +220,7 @@ async def switch_outlet(
     if not target_outlet:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Outlet '{request.target_outlet_id}' is inactive or does not exist."
+            detail=f"Outlet '{request.target_outlet_id}' is inactive or does not exist.",
         )
 
     jwt_payload = {
@@ -220,7 +230,7 @@ async def switch_outlet(
         "role": ctx.role,
         "name": ctx.name,
         "email": ctx.email,
-        "allowed_outlets": active_outlets
+        "allowed_outlets": active_outlets,
     }
     new_token = create_jwt_token(jwt_payload)
     set_auth_cookie(response, new_token)
@@ -236,6 +246,6 @@ async def switch_outlet(
             role=ctx.role,
             client_id=ctx.client_id,
             active_outlet_id=request.target_outlet_id,
-            allowed_outlets=active_outlets
-        )
+            allowed_outlets=active_outlets,
+        ),
     )

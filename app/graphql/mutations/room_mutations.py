@@ -24,7 +24,7 @@ from app.services.room_service import (
     update_utility,
     update_utility_status,
     delete_utility,
-    list_rooms
+    list_rooms,
 )
 from app.graphql.types.room_types import (
     BuildingPayloadType,
@@ -47,11 +47,12 @@ from app.graphql.types.room_types import (
     BulkRoomsPayload,
     UpdateRoomInput,
     CreateUtilityInput,
-    UpdateUtilityInput
+    UpdateUtilityInput,
 )
 from app.graphql.types.user_types import StatusPayload
 from app.graphql.helpers import get_auth_context
 from app.graphql.queries.room_queries import map_room, map_utility
+
 
 @strawberry.type
 class RoomMutation:
@@ -64,11 +65,12 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             b = await create_building(
-                db, ctx,
+                db,
+                ctx,
                 name=input.name,
                 code=input.code,
                 building_type=input.building_type or "HOTEL_TOWER",
-                display_order=input.display_order
+                display_order=input.display_order,
             )
             return BuildingPayloadType(
                 id=int(b.id),
@@ -79,7 +81,7 @@ class RoomMutation:
                 is_active=b.is_active,
                 floor_count=0,
                 room_count=0,
-                utility_count=0
+                utility_count=0,
             )
 
     @strawberry.field(description="Updates an existing building/wing.")
@@ -87,13 +89,14 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             b = await update_building(
-                db, ctx,
+                db,
+                ctx,
                 building_id=id,
                 name=input.name,
                 code=input.code,
                 building_type=input.building_type,
                 display_order=input.display_order,
-                is_active=input.is_active
+                is_active=input.is_active,
             )
             return BuildingPayloadType(
                 id=int(b.id),
@@ -101,7 +104,7 @@ class RoomMutation:
                 code=b.code,
                 building_type=b.building_type,
                 display_order=b.display_order,
-                is_active=b.is_active
+                is_active=b.is_active,
             )
 
     @strawberry.field(description="Deletes (deactivates) a building if no active rooms exist in it.")
@@ -123,7 +126,7 @@ class RoomMutation:
                     code=b.code,
                     building_type=b.building_type,
                     display_order=b.display_order,
-                    is_active=b.is_active
+                    is_active=b.is_active,
                 )
                 for b in ordered
             ]
@@ -137,10 +140,11 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             f = await create_floor(
-                db, ctx,
+                db,
+                ctx,
                 floor_number=input.floor_number,
                 name=input.name,
-                building_id=input.building_id
+                building_id=input.building_id,
             )
             return FloorType(
                 id=int(f.id),
@@ -150,7 +154,7 @@ class RoomMutation:
                 is_active=f.is_active,
                 room_count=0,
                 rooms=[],
-                utilities=[]
+                utilities=[],
             )
 
     @strawberry.field(description="Updates an existing floor, with optional building reassignment.")
@@ -158,12 +162,13 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             f = await update_floor(
-                db, ctx,
+                db,
+                ctx,
                 floor_id=id,
                 floor_number=input.floor_number,
                 name=input.name,
                 building_id=input.building_id,
-                is_active=input.is_active
+                is_active=input.is_active,
             )
             return FloorType(
                 id=int(f.id),
@@ -173,7 +178,7 @@ class RoomMutation:
                 is_active=f.is_active,
                 room_count=0,
                 rooms=[],
-                utilities=[]
+                utilities=[],
             )
 
     @strawberry.field(description="Deletes (deactivates) a floor if no rooms exist on it.")
@@ -188,9 +193,10 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             floors = await reorder_floors(
-                db, ctx,
+                db,
+                ctx,
                 building_id=input.building_id,
-                floor_ids_bottom_to_top=input.floor_ids_bottom_to_top
+                floor_ids_bottom_to_top=input.floor_ids_bottom_to_top,
             )
             return [
                 FloorType(
@@ -201,7 +207,7 @@ class RoomMutation:
                     is_active=f.is_active,
                     room_count=0,
                     rooms=[],
-                    utilities=[]
+                    utilities=[],
                 )
                 for f in floors
             ]
@@ -215,13 +221,14 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             c = await create_room_category(
-                db, ctx,
+                db,
+                ctx,
                 name=input.name,
                 base_price=input.base_price,
                 code=input.code,
                 max_adults=input.max_adults,
                 max_children=input.max_children,
-                amenities=input.amenities
+                amenities=input.amenities,
             )
             amenities_list = [a.strip() for a in c.amenities.split(",") if a.strip()] if c.amenities else []
             return RoomCategoryType(
@@ -233,7 +240,7 @@ class RoomMutation:
                 max_children=c.max_children,
                 amenities=amenities_list,
                 is_active=c.is_active,
-                room_count=0
+                room_count=0,
             )
 
     @strawberry.field(description="Updates a room category.")
@@ -241,7 +248,8 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             c = await update_room_category(
-                db, ctx,
+                db,
+                ctx,
                 category_id=id,
                 name=input.name,
                 code=input.code,
@@ -249,7 +257,7 @@ class RoomMutation:
                 max_adults=input.max_adults,
                 max_children=input.max_children,
                 amenities=input.amenities,
-                is_active=input.is_active
+                is_active=input.is_active,
             )
             amenities_list = [a.strip() for a in c.amenities.split(",") if a.strip()] if c.amenities else []
             return RoomCategoryType(
@@ -261,7 +269,7 @@ class RoomMutation:
                 max_children=c.max_children,
                 amenities=amenities_list,
                 is_active=c.is_active,
-                room_count=0
+                room_count=0,
             )
 
     @strawberry.field(description="Deletes (deactivates) a room category if no rooms belong to it.")
@@ -275,18 +283,21 @@ class RoomMutation:
     # Room Mutations (Free-Hand & Category Support)
     # =========================================================================
 
-    @strawberry.field(description="Creates a room with either standard category or free-hand custom pricing & amenities.")
+    @strawberry.field(
+        description="Creates a room with either standard category or free-hand custom pricing & amenities."
+    )
     async def create_room(self, info: Info, input: CreateRoomInput) -> RoomType:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             r = await create_room(
-                db, ctx,
+                db,
+                ctx,
                 floor_id=input.floor_id,
                 room_number=input.room_number,
                 category_id=input.category_id,
                 custom_name=input.custom_name,
                 custom_price=input.custom_price,
-                custom_amenities=input.custom_amenities
+                custom_amenities=input.custom_amenities,
             )
             rooms_list = await list_rooms(db, ctx, floor_id=r.floor_id)
             for r_item in rooms_list:
@@ -306,7 +317,7 @@ class RoomMutation:
                 custom_name=r.custom_name,
                 custom_price=float(r.custom_price) if r.custom_price is not None else None,
                 custom_amenities=input.custom_amenities or [],
-                is_active=r.is_active
+                is_active=r.is_active,
             )
 
     @strawberry.field(description="Bulk generates rooms on a floor.")
@@ -314,13 +325,14 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             res = await create_bulk_rooms(
-                db, ctx,
+                db,
+                ctx,
                 floor_id=input.floor_id,
                 start_number=input.start_number,
                 end_number=input.end_number,
                 category_id=input.category_id,
                 prefix=input.prefix,
-                custom_price=input.custom_price
+                custom_price=input.custom_price,
             )
             rooms_list = await list_rooms(db, ctx, floor_id=input.floor_id)
             created_ids = {r.id for r in res["rooms"]}
@@ -330,7 +342,7 @@ class RoomMutation:
                 status=res["status"],
                 message=res["message"],
                 created_count=res["created_count"],
-                rooms=formatted_rooms
+                rooms=formatted_rooms,
             )
 
     @strawberry.field(description="Updates room details or moves room across floors and buildings.")
@@ -344,7 +356,8 @@ class RoomMutation:
             c_amenities = input.custom_amenities if input.custom_amenities is not None else "UNSET"
 
             r = await update_room(
-                db, ctx,
+                db,
+                ctx,
                 room_id=id,
                 floor_id=input.floor_id,
                 category_id=cat_id,
@@ -353,7 +366,7 @@ class RoomMutation:
                 custom_price=c_price,
                 custom_amenities=c_amenities,
                 status_val=status_str,
-                is_active=input.is_active
+                is_active=input.is_active,
             )
 
             rooms_list = await list_rooms(db, ctx, floor_id=r.floor_id)
@@ -374,7 +387,7 @@ class RoomMutation:
                 custom_name=r.custom_name,
                 custom_price=float(r.custom_price) if r.custom_price is not None else None,
                 custom_amenities=[],
-                is_active=r.is_active
+                is_active=r.is_active,
             )
 
     @strawberry.field(description="Updates live PMS room status (AVAILABLE, OCCUPIED, CLEANING, MAINTENANCE).")
@@ -397,7 +410,7 @@ class RoomMutation:
                 category_name="Custom Room",
                 base_price=0.0,
                 amenities=[],
-                is_active=r.is_active
+                is_active=r.is_active,
             )
 
     @strawberry.field(description="Deletes (deactivates) a room if not currently occupied.")
@@ -416,7 +429,8 @@ class RoomMutation:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             u = await create_utility(
-                db, ctx,
+                db,
+                ctx,
                 building_id=input.building_id,
                 name=input.name,
                 utility_type=input.utility_type,
@@ -426,7 +440,7 @@ class RoomMutation:
                 operating_hours=input.operating_hours,
                 is_bookable=input.is_bookable,
                 rental_price=input.rental_price,
-                amenities=input.amenities
+                amenities=input.amenities,
             )
             return map_utility(u)
 
@@ -436,7 +450,8 @@ class RoomMutation:
         async with AsyncSessionLocal() as db:
             f_id = input.floor_id if input.floor_id is not None else "UNSET"
             u = await update_utility(
-                db, ctx,
+                db,
+                ctx,
                 utility_id=id,
                 name=input.name,
                 utility_type=input.utility_type,
@@ -448,7 +463,7 @@ class RoomMutation:
                 is_bookable=input.is_bookable,
                 rental_price=input.rental_price,
                 amenities=input.amenities,
-                is_active=input.is_active
+                is_active=input.is_active,
             )
             return map_utility(u)
 

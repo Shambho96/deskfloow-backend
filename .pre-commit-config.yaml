@@ -1,0 +1,18 @@
+# See https://pre-commit.com for more information
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      # Run the linter & syntax checker
+      - id: ruff
+        args: [--fix]
+      # Run the formatter test
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: python-syntax-check
+        name: Python Syntax Compilation Check
+        entry: python -m py_compile
+        language: system
+        types: [python]

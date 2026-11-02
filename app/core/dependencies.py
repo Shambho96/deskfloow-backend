@@ -10,9 +10,10 @@ from app.core.context import UserContext
 # Enables the "Authorize 🔓" button in Swagger UI docs (/docs)
 security_scheme = HTTPBearer(auto_error=False)
 
+
 async def get_current_user_context(
     request: Request,
-    auth_credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme)
+    auth_credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_scheme),
 ) -> UserContext:
     """
     FastAPI dependency extracting UserContext from HttpOnly cookie or Authorization header.
@@ -46,7 +47,7 @@ async def get_current_user_context(
         if payload.get("role") == "STAFF":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Staff accounts are restricted from web API access."
+                detail="Staff accounts are restricted from web API access.",
             )
 
         raw_sub = payload.get("sub")
@@ -60,7 +61,7 @@ async def get_current_user_context(
         if is_active is not True:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Your account has been deactivated. Please contact your administrator."
+                detail="Your account has been deactivated. Please contact your administrator.",
             )
 
         return UserContext(
@@ -70,10 +71,7 @@ async def get_current_user_context(
             role=payload["role"],
             email=payload.get("email"),
             name=payload.get("name"),
-            allowed_outlets=payload.get("allowed_outlets", [])
+            allowed_outlets=payload.get("allowed_outlets", []),
         )
 
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=last_error
-    )
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=last_error)

@@ -14,7 +14,7 @@ from app.services.room_service import (
     get_room_by_id,
     list_utilities,
     get_campus_layout,
-    get_hotel_layout
+    get_hotel_layout,
 )
 from app.graphql.types.room_types import (
     BuildingPayloadType,
@@ -26,9 +26,10 @@ from app.graphql.types.room_types import (
     UtilityType,
     HotelLayoutPayload,
     RoomStatusEnum,
-    UtilityStatusEnum
+    UtilityStatusEnum,
 )
 from app.graphql.helpers import get_auth_context
+
 
 def map_room(r_dict) -> RoomType:
     r = r_dict["room"]
@@ -48,8 +49,9 @@ def map_room(r_dict) -> RoomType:
         custom_name=r.custom_name,
         custom_price=float(r.custom_price) if r.custom_price is not None else None,
         custom_amenities=r_dict.get("custom_amenities", []),
-        is_active=r.is_active
+        is_active=r.is_active,
     )
+
 
 def map_category(c_dict) -> RoomCategoryType:
     c = c_dict["category"]
@@ -63,8 +65,9 @@ def map_category(c_dict) -> RoomCategoryType:
         max_children=c.max_children,
         amenities=amenities_list,
         is_active=c.is_active,
-        room_count=c_dict["room_count"]
+        room_count=c_dict["room_count"],
     )
+
 
 def map_utility(u) -> UtilityType:
     amenities_list = [a.strip() for a in u.amenities.split(",") if a.strip()] if u.amenities else []
@@ -80,8 +83,9 @@ def map_utility(u) -> UtilityType:
         is_bookable=u.is_bookable,
         rental_price=float(u.rental_price) if u.rental_price is not None else None,
         amenities=amenities_list,
-        is_active=u.is_active
+        is_active=u.is_active,
     )
+
 
 def map_building(b_dict) -> BuildingPayloadType:
     b = b_dict["building"]
@@ -94,8 +98,9 @@ def map_building(b_dict) -> BuildingPayloadType:
         is_active=b.is_active,
         floor_count=b_dict.get("floor_count", 0),
         room_count=b_dict.get("room_count", 0),
-        utility_count=b_dict.get("utility_count", 0)
+        utility_count=b_dict.get("utility_count", 0),
     )
+
 
 @strawberry.type
 class RoomQuery:
@@ -114,17 +119,19 @@ class RoomQuery:
             result = []
             for item in data:
                 f = item["floor"]
-                result.append(FloorType(
-                    id=int(f.id),
-                    floor_number=f.floor_number,
-                    name=f.name,
-                    building_id=int(f.building_id) if f.building_id else None,
-                    building_name=item.get("building_name", "Main Tower"),
-                    is_active=f.is_active,
-                    room_count=item["room_count"],
-                    rooms=[],
-                    utilities=[]
-                ))
+                result.append(
+                    FloorType(
+                        id=int(f.id),
+                        floor_number=f.floor_number,
+                        name=f.name,
+                        building_id=int(f.building_id) if f.building_id else None,
+                        building_name=item.get("building_name", "Main Tower"),
+                        is_active=f.is_active,
+                        room_count=item["room_count"],
+                        rooms=[],
+                        utilities=[],
+                    )
+                )
             return result
 
     @strawberry.field(description="Lists all room categories, base pricing, and amenities.")
@@ -142,18 +149,19 @@ class RoomQuery:
         floor_id: Optional[int] = None,
         category_id: Optional[int] = None,
         status: Optional[RoomStatusEnum] = None,
-        is_active: bool = True
+        is_active: bool = True,
     ) -> List[RoomType]:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             status_str = status.value if status else None
             data = await list_rooms(
-                db, ctx,
+                db,
+                ctx,
                 building_id=building_id,
                 floor_id=floor_id,
                 category_id=category_id,
                 status_val=status_str,
-                is_active=is_active
+                is_active=is_active,
             )
             return [map_room(item) for item in data]
 
@@ -163,14 +171,16 @@ class RoomQuery:
         info: Info,
         building_id: Optional[int] = None,
         floor_id: Optional[int] = None,
-        is_active: bool = True
+        is_active: bool = True,
     ) -> List[UtilityType]:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
             data = await list_utilities(db, ctx, building_id=building_id, floor_id=floor_id, is_active=is_active)
             return [map_utility(u) for u in data]
 
-    @strawberry.field(description="Fetches full Hierarchical Campus Architecture: Buildings -> Floors -> Rooms + Utilities.")
+    @strawberry.field(
+        description="Fetches full Hierarchical Campus Architecture: Buildings -> Floors -> Rooms + Utilities."
+    )
     async def campus_layout(self, info: Info) -> CampusLayoutPayload:
         ctx = get_auth_context(info)
         async with AsyncSessionLocal() as db:
@@ -188,7 +198,7 @@ class RoomQuery:
                     is_active=b.is_active,
                     floor_count=b_info["total_floors"],
                     room_count=b_info["total_rooms"],
-                    utility_count=len(b_info.get("utilities", []))
+                    utility_count=len(b_info.get("utilities", [])),
                 )
 
                 floors_list = []
@@ -196,27 +206,31 @@ class RoomQuery:
                     f = f_info["floor"]
                     floor_rooms = [map_room(r) for r in f_info["rooms"]]
                     floor_utils = [map_utility(u) for u in f_info.get("utilities", [])]
-                    floors_list.append(FloorType(
-                        id=int(f.id),
-                        floor_number=f.floor_number,
-                        name=f.name,
-                        building_id=int(f.building_id) if f.building_id else None,
-                        building_name=b.name,
-                        is_active=f.is_active,
-                        room_count=f_info["room_count"],
-                        rooms=floor_rooms,
-                        utilities=floor_utils
-                    ))
+                    floors_list.append(
+                        FloorType(
+                            id=int(f.id),
+                            floor_number=f.floor_number,
+                            name=f.name,
+                            building_id=int(f.building_id) if f.building_id else None,
+                            building_name=b.name,
+                            is_active=f.is_active,
+                            room_count=f_info["room_count"],
+                            rooms=floor_rooms,
+                            utilities=floor_utils,
+                        )
+                    )
 
                 b_utilities = [map_utility(u) for u in b_info.get("utilities", [])]
 
-                campus_buildings.append(CampusBuildingType(
-                    building=b_payload,
-                    total_floors=b_info["total_floors"],
-                    total_rooms=b_info["total_rooms"],
-                    floors=floors_list,
-                    utilities=b_utilities
-                ))
+                campus_buildings.append(
+                    CampusBuildingType(
+                        building=b_payload,
+                        total_floors=b_info["total_floors"],
+                        total_rooms=b_info["total_rooms"],
+                        floors=floors_list,
+                        utilities=b_utilities,
+                    )
+                )
 
             return CampusLayoutPayload(
                 status=data["status"],
@@ -228,7 +242,7 @@ class RoomQuery:
                 cleaning_rooms=data["cleaning_rooms"],
                 maintenance_rooms=data["maintenance_rooms"],
                 total_utilities=data["total_utilities"],
-                buildings=campus_buildings
+                buildings=campus_buildings,
             )
 
     @strawberry.field(description="Fetches legacy Front-Desk layout.")
@@ -240,17 +254,19 @@ class RoomQuery:
             for f_info in data["floors"]:
                 f = f_info["floor"]
                 floor_rooms = [map_room(r) for r in f_info["rooms"]]
-                floors_list.append(FloorType(
-                    id=int(f.id),
-                    floor_number=f.floor_number,
-                    name=f.name,
-                    building_id=int(f.building_id) if f.building_id else None,
-                    building_name="Main Tower",
-                    is_active=f.is_active,
-                    room_count=f_info["room_count"],
-                    rooms=floor_rooms,
-                    utilities=[]
-                ))
+                floors_list.append(
+                    FloorType(
+                        id=int(f.id),
+                        floor_number=f.floor_number,
+                        name=f.name,
+                        building_id=int(f.building_id) if f.building_id else None,
+                        building_name="Main Tower",
+                        is_active=f.is_active,
+                        room_count=f_info["room_count"],
+                        rooms=floor_rooms,
+                        utilities=[],
+                    )
+                )
 
             return HotelLayoutPayload(
                 status=data["status"],
@@ -260,5 +276,5 @@ class RoomQuery:
                 occupied_rooms=data["occupied_rooms"],
                 cleaning_rooms=data["cleaning_rooms"],
                 maintenance_rooms=data["maintenance_rooms"],
-                floors=floors_list
+                floors=floors_list,
             )

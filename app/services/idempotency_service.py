@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from app.models.idempotency import IdempotencyKey
 
+
 def compute_payload_hash(payload: Any) -> str:
     """Computes a deterministic SHA-256 hash of incoming JSON payload."""
     if isinstance(payload, dict):
@@ -14,13 +15,14 @@ def compute_payload_hash(payload: Any) -> str:
         serialized = str(payload)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
+
 async def check_or_lock_idempotency(
     session: AsyncSession,
     client_id: int,
     outlet_id: int,
     key: Optional[str],
     endpoint: str,
-    payload: Any
+    payload: Any,
 ) -> Tuple[Optional[dict], bool]:
     """
     Checks if an idempotency key already exists.
@@ -38,7 +40,7 @@ async def check_or_lock_idempotency(
     stmt = select(IdempotencyKey).where(
         and_(
             IdempotencyKey.client_id == client_id,
-            IdempotencyKey.idempotency_key == key.strip()
+            IdempotencyKey.idempotency_key == key.strip(),
         )
     )
     result = await session.execute(stmt)
@@ -53,7 +55,7 @@ async def check_or_lock_idempotency(
             endpoint=endpoint,
             request_hash=current_hash,
             status="PROCESSING",
-            expires_at=datetime.utcnow() + timedelta(hours=48)
+            expires_at=datetime.utcnow() + timedelta(hours=48),
         )
         session.add(new_record)
         await session.flush()
@@ -61,24 +63,21 @@ async def check_or_lock_idempotency(
 
     # Validate payload integrity
     if record.request_hash != current_hash:
-        raise ValueError(
-            f"Idempotency Key '{key}' was previously used with a different request payload."
-        )
+        raise ValueError(f"Idempotency Key '{key}' was previously used with a different request payload.")
 
     if record.status == "PROCESSING":
-        raise RuntimeError(
-            f"An identical request with key '{key}' is currently being processed. Please wait."
-        )
+        raise RuntimeError(f"An identical request with key '{key}' is currently being processed. Please wait.")
 
     # Return cached response
     return record.response_body, False
+
 
 async def finalize_idempotency(
     session: AsyncSession,
     client_id: int,
     key: Optional[str],
     response_code: int,
-    response_body: dict
+    response_body: dict,
 ) -> None:
     """Marks the idempotency record as COMPLETED and stores serialized response."""
     if not key or not key.strip():
@@ -87,7 +86,7 @@ async def finalize_idempotency(
     stmt = select(IdempotencyKey).where(
         and_(
             IdempotencyKey.client_id == client_id,
-            IdempotencyKey.idempotency_key == key.strip()
+            IdempotencyKey.idempotency_key == key.strip(),
         )
     )
     result = await session.execute(stmt)

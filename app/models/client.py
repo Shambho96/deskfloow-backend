@@ -7,6 +7,7 @@ if TYPE_CHECKING:
     from app.models.outlet import Outlet
     from app.models.user import User
 
+
 class Client(Base):
     __tablename__ = "clients"
 

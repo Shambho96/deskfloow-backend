@@ -7,11 +7,13 @@ from app.models import User
 from app.core.security import decode_jwt_token
 from app.core.context import UserContext
 
+
 class GraphQLContext(BaseContext):
     def __init__(self, request: Request, user: Optional[UserContext]):
         super().__init__()
         self.request = request
         self.user = user
+
 
 async def get_graphql_context(request: Request) -> GraphQLContext:
     """
@@ -47,7 +49,7 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
                 # User was deactivated or deleted: immediately block request with 401
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Your account has been deactivated. Please contact your administrator."
+                    detail="Your account has been deactivated. Please contact your administrator.",
                 )
 
             user_context = UserContext(
@@ -57,7 +59,7 @@ async def get_graphql_context(request: Request) -> GraphQLContext:
                 role=payload["role"],
                 email=payload.get("email"),
                 name=payload.get("name"),
-                allowed_outlets=payload.get("allowed_outlets", [])
+                allowed_outlets=payload.get("allowed_outlets", []),
             )
             break
 

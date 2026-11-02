@@ -2,6 +2,7 @@ import strawberry
 from typing import Optional, List
 from enum import Enum
 
+
 @strawberry.enum
 class RoomStatusEnum(Enum):
     AVAILABLE = "AVAILABLE"
@@ -9,12 +10,14 @@ class RoomStatusEnum(Enum):
     CLEANING = "CLEANING"
     MAINTENANCE = "MAINTENANCE"
 
+
 @strawberry.enum
 class UtilityStatusEnum(Enum):
     OPEN = "OPEN"
     CLOSED = "CLOSED"
     CLEANING = "CLEANING"
     MAINTENANCE = "MAINTENANCE"
+
 
 @strawberry.type
 class UtilityType:
@@ -30,6 +33,7 @@ class UtilityType:
     rental_price: Optional[float] = None
     amenities: List[str] = strawberry.field(default_factory=list)
     is_active: bool = True
+
 
 @strawberry.type
 class RoomType:
@@ -50,6 +54,7 @@ class RoomType:
     custom_amenities: List[str] = strawberry.field(default_factory=list)
     is_active: bool = True
 
+
 @strawberry.type
 class FloorType:
     id: int
@@ -61,6 +66,7 @@ class FloorType:
     room_count: int
     rooms: List[RoomType] = strawberry.field(default_factory=list)
     utilities: List[UtilityType] = strawberry.field(default_factory=list)
+
 
 @strawberry.type
 class RoomCategoryType:
@@ -74,6 +80,7 @@ class RoomCategoryType:
     is_active: bool
     room_count: int
 
+
 @strawberry.type
 class BuildingPayloadType:
     id: int
@@ -86,6 +93,7 @@ class BuildingPayloadType:
     room_count: int = 0
     utility_count: int = 0
 
+
 @strawberry.type
 class CampusBuildingType:
     building: BuildingPayloadType
@@ -93,6 +101,7 @@ class CampusBuildingType:
     total_rooms: int
     floors: List[FloorType] = strawberry.field(default_factory=list)
     utilities: List[UtilityType] = strawberry.field(default_factory=list)
+
 
 @strawberry.type
 class CampusLayoutPayload:
@@ -107,6 +116,7 @@ class CampusLayoutPayload:
     total_utilities: int
     buildings: List[CampusBuildingType]
 
+
 @strawberry.type
 class HotelLayoutPayload:
     status: str
@@ -118,9 +128,11 @@ class HotelLayoutPayload:
     maintenance_rooms: int
     floors: List[FloorType]
 
+
 # =========================================================================
 # Inputs
 # =========================================================================
+
 
 @strawberry.input
 class CreateBuildingInput:
@@ -128,6 +140,7 @@ class CreateBuildingInput:
     code: Optional[str] = None
     building_type: Optional[str] = "HOTEL_TOWER"
     display_order: Optional[int] = None
+
 
 @strawberry.input
 class UpdateBuildingInput:
@@ -137,15 +150,18 @@ class UpdateBuildingInput:
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
 
+
 @strawberry.input
 class ReorderBuildingsInput:
     building_ids: List[int]
+
 
 @strawberry.input
 class CreateFloorInput:
     floor_number: int
     name: str
     building_id: Optional[int] = None
+
 
 @strawberry.input
 class UpdateFloorInput:
@@ -154,10 +170,12 @@ class UpdateFloorInput:
     building_id: Optional[int] = None
     is_active: Optional[bool] = None
 
+
 @strawberry.input
 class ReorderFloorsInput:
     building_id: int
     floor_ids_bottom_to_top: List[int]
+
 
 @strawberry.input
 class CreateRoomCategoryInput:
@@ -167,6 +185,7 @@ class CreateRoomCategoryInput:
     max_adults: int = 2
     max_children: int = 1
     amenities: Optional[List[str]] = None
+
 
 @strawberry.input
 class UpdateRoomCategoryInput:
@@ -178,6 +197,7 @@ class UpdateRoomCategoryInput:
     amenities: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
+
 @strawberry.input
 class CreateRoomInput:
     floor_id: int
@@ -186,6 +206,7 @@ class CreateRoomInput:
     custom_name: Optional[str] = None
     custom_price: Optional[float] = None
     custom_amenities: Optional[List[str]] = None
+
 
 @strawberry.input
 class UpdateRoomInput:
@@ -198,6 +219,7 @@ class UpdateRoomInput:
     status: Optional[RoomStatusEnum] = None
     is_active: Optional[bool] = None
 
+
 @strawberry.input
 class CreateBulkRoomsInput:
     floor_id: int
@@ -207,12 +229,14 @@ class CreateBulkRoomsInput:
     prefix: Optional[str] = None
     custom_price: Optional[float] = None
 
+
 @strawberry.type
 class BulkRoomsPayload:
     status: str
     message: str
     created_count: int
     rooms: List[RoomType]
+
 
 @strawberry.input
 class CreateUtilityInput:
@@ -226,6 +250,7 @@ class CreateUtilityInput:
     is_bookable: bool = False
     rental_price: Optional[float] = None
     amenities: Optional[List[str]] = None
+
 
 @strawberry.input
 class UpdateUtilityInput:
