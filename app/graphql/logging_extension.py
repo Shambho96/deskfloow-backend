@@ -2,7 +2,7 @@ import time
 import logging
 from strawberry.extensions import SchemaExtension
 
-logger = logging.getLogger("deskflow.graphql")
+logger = logging.getLogger("DeskFloow.graphql")
 
 
 class GraphQLLoggerExtension(SchemaExtension):

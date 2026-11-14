@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DeskFlow Backend - Syntax Checker and Formatter Test Runner
+DeskFloow Backend - Syntax Checker and Formatter Test Runner
 Checks Python syntax compilation and code formatting for Git pre-commit hooks and CI.
 """
 

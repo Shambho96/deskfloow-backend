@@ -1,4 +1,4 @@
-# DeskFlow Database Migrations Guide (Alembic)
+# DeskFloow Database Migrations Guide (Alembic)
 
 This guide explains how database schema migrations work in `HRM-backend` using **Alembic** and **SQLAlchemy 2.0**.
 

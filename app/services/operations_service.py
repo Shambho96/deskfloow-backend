@@ -459,6 +459,7 @@ async def create_reservation(
         if not guest:
             guest = Guest(
                 client_id=client_id,
+                outlet_id=outlet_id,
                 first_name=first_name,
                 last_name=last_name,
                 phone=phone,
@@ -470,6 +471,8 @@ async def create_reservation(
             session.add(guest)
             await session.flush()
         else:
+            if not guest.outlet_id:
+                guest.outlet_id = outlet_id
             if data.get("id_type"):
                 guest.id_type = data["id_type"]
             if data.get("id_number"):

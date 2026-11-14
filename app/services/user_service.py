@@ -91,7 +91,7 @@ async def create_team_member(db: AsyncSession, ctx: UserContext, req: UserCreate
     if not email_clean:
         import uuid
 
-        email_clean = f"staff_{uuid.uuid4().hex[:8]}@internal.deskflow.com"
+        email_clean = f"staff_{uuid.uuid4().hex[:8]}@internal.DeskFloow.com"
 
     encrypted_phone = encrypt_phone(req.phone) if req.phone else None
     phone_blind = hash_phone_blind(req.phone) if req.phone else None

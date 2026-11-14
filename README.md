@@ -1,6 +1,6 @@
-# 🏨 DeskFlow PMS — Backend Engine
+# 🏨 DeskFloow PMS — Backend Engine
 
-DeskFlow is a high-performance, multi-tenant Hotel Property Management System (PMS) backend built with **FastAPI**, **Strawberry GraphQL**, **AsyncSQLAlchemy**, and **PostgreSQL (Neon Cloud DB)**.
+DeskFloow is a high-performance, multi-tenant Hotel Property Management System (PMS) backend built with **FastAPI**, **Strawberry GraphQL**, **AsyncSQLAlchemy**, and **PostgreSQL (Neon Cloud DB)**.
 
 It features a **Hybrid REST + GraphQL Architecture**:
 - **REST API (`/api/v1/auth/`)**: Secure authentication, HttpOnly cookies, and session outlet switching.
@@ -67,7 +67,7 @@ Create a `.env` file in the project root directory (`HRM-backend/.env`):
 
 ```env
 # Application Settings
-APP_NAME="DeskFlow Hotel PMS API"
+APP_NAME="DeskFloow Hotel PMS API"
 ENVIRONMENT="development"
 PORT=8000
 SQL_ECHO=False

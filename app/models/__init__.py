@@ -13,6 +13,7 @@ from app.models.folio import GuestFolio, FolioLineItem, FolioPayment
 from app.models.idempotency import IdempotencyKey
 from app.models.housekeeping import HousekeepingTask, MaintenanceTicket
 from app.models.audit_log import OperationalAuditLog
+from app.models.loyalty import LoyaltyTier
 
 __all__ = [
     "Client",
@@ -33,4 +34,5 @@ __all__ = [
     "HousekeepingTask",
     "MaintenanceTicket",
     "OperationalAuditLog",
+    "LoyaltyTier",
 ]

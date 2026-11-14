@@ -7,7 +7,7 @@ from alembic import context
 # Import app configuration and models
 from app.config import settings
 from app.db.base import Base
-from app.models import Client, Outlet, User, UserClientOutletMapping
+import app.models
 
 config = context.config
 

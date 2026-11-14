@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-echo "========== Starting DeskFlow Backend Deployment =========="
+echo "========== Starting DeskFloow Backend Deployment =========="
 
 # ----------------------------------------
 # Auto-detect AWS Region and Account ID via IMDSv2
@@ -51,18 +51,18 @@ export IMAGE_TAG="${IMAGE_TAG:-latest}"
 if [ "$ENVIRONMENT" = "dev" ]; then
     echo "[ENVIRONMENT] Development mode selected"
     COMPOSE_FILE="$PROJECT_DIR/docker-compose.dev.yml"
-    PROJECT_NAME="deskflow-backend-dev"
-    ENV_FILE="/home/ubuntu/.deskflow-dev-env"
+    PROJECT_NAME="DeskFloow-backend-dev"
+    ENV_FILE="/home/ubuntu/.DeskFloow-dev-env"
 elif [ "$ENVIRONMENT" = "staging" ]; then
     echo "[ENVIRONMENT] Staging mode selected"
     COMPOSE_FILE="$PROJECT_DIR/docker-compose.staging.yml"
-    PROJECT_NAME="deskflow-backend-staging"
-    ENV_FILE="/home/ubuntu/.deskflow-staging-env"
+    PROJECT_NAME="DeskFloow-backend-staging"
+    ENV_FILE="/home/ubuntu/.DeskFloow-staging-env"
 else
     echo "[ENVIRONMENT] Production mode selected"
     COMPOSE_FILE="$PROJECT_DIR/docker-compose.prod.yml"
-    PROJECT_NAME="deskflow-backend-prod"
-    ENV_FILE="/home/ubuntu/.deskflow-env"
+    PROJECT_NAME="DeskFloow-backend-prod"
+    ENV_FILE="/home/ubuntu/.DeskFloow-env"
 fi
 
 # ----------------------------------------

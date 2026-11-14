@@ -2,7 +2,7 @@ version: 0.0
 os: linux
 files:
   - source: /
-    destination: /app/deskflow-backend-dev
+    destination: /app/DeskFloow-backend-dev
 hooks:
   AfterInstall:
     - location: scripts/deploy.sh

@@ -5,7 +5,7 @@ RECOMMENDED_PYTHON_VERSION = (3, 14)
 
 
 def verify_python_version(abort_on_fail: bool = True) -> bool:
-    """Verifies that the current system Python runtime meets DeskFlow PMS requirements.
+    """Verifies that the current system Python runtime meets DeskFloow PMS requirements.
 
     Minimum Required: Python 3.11+
     Recommended:      Python 3.14
@@ -22,7 +22,7 @@ def verify_python_version(abort_on_fail: bool = True) -> bool:
         print(f" [SUCCESS] Python Version Check Passed!")
         print(f" Current System Version : {current_str}")
         print(f" Product Requirement    : >={min_str} (Target: {rec_str})")
-        print(" Status                 : System meets DeskFlow PMS requirements.")
+        print(" Status                 : System meets DeskFloow PMS requirements.")
         print("=" * 65 + "\n")
         return True
     else:

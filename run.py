@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DeskFlow Backend Command Runner
+DeskFloow Backend Command Runner
 Package.json-style script runner for the FastAPI backend.
 
 Usage:
@@ -51,7 +51,7 @@ SCRIPTS: Dict[str, Tuple[str, str]] = {
 
 def print_help():
     print("\n" + "=" * 65)
-    print(" DeskFlow Backend Scripts (package.json style)")
+    print(" DeskFloow Backend Scripts (package.json style)")
     print("=" * 65)
     print(" Usage: python run.py <command> [extra arguments]\n")
     print(f" {'Command':<18} {'Description'}")
@@ -83,7 +83,7 @@ def main():
     else:
         full_command = cmd_template
 
-    print(f"\n> DeskFlow: {full_command}\n", flush=True)
+    print(f"\n> DeskFloow: {full_command}\n", flush=True)
 
     try:
         # Run using shell so Windows terminal handles signals and reload cleanly

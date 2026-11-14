@@ -30,7 +30,7 @@ if "postgresql" in db_url:
             "connect_args": {
                 "server_settings": {
                     "jit": "off",  # Disable Postgres JIT compilation overhead for fast OLTP queries
-                    "application_name": "deskflow_pms",
+                    "application_name": "DeskFloow_pms",
                 }
             },
         }

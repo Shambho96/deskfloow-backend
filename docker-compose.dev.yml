@@ -1,9 +1,9 @@
 services:
   app:
     image: ${ECR_REGISTRY}/${REPO_NAME}:${IMAGE_TAG:-dev}
-    container_name: deskflow-backend-dev
+    container_name: DeskFloow-backend-dev
     labels:
-      service: "deskflow-backend"
+      service: "DeskFloow-backend"
       environment: "development"
     restart: unless-stopped
     ports:
@@ -11,7 +11,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     env_file:
-      - /home/ubuntu/.deskflow-dev-env
+      - /home/ubuntu/.DeskFloow-dev-env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

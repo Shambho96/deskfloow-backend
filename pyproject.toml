@@ -5,8 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "hrm-backend"
 version = "0.1.0"
-description = "DeskFlow Hotel PMS Backend API (FastAPI + Strawberry GraphQL + Async PostgreSQL)"
-authors = [{ name = "DeskFlow Team" }]
+description = "DeskFloow Hotel PMS Backend API (FastAPI + Strawberry GraphQL + Async PostgreSQL)"
+authors = [{ name = "DeskFloow Team" }]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",

@@ -1,12 +1,12 @@
-# 🏨 DeskFlow PMS — Floor & Room Section System Design & DB Architecture
+# 🏨 DeskFloow PMS — Floor & Room Section System Design & DB Architecture
 
-This document provides the complete, production-grade system design, database schema, and operational rules for the **Floors, Room Categories, and Rooms** module of DeskFlow PMS.
+This document provides the complete, production-grade system design, database schema, and operational rules for the **Floors, Room Categories, and Rooms** module of DeskFloow PMS.
 
 ---
 
 ## 1. Architectural Scope & Multi-Tenant Isolation
 
-DeskFlow is a multi-tenant Hotel Property Management System (PMS) where:
+DeskFloow is a multi-tenant Hotel Property Management System (PMS) where:
 - A parent organization (**`Client`**) owns one or more hotel branches (**`Outlet`**).
 - All physical units (**`Floor`**, **`RoomCategory`**, and **`Room`**) are strictly partitioned by `outlet_id` and `client_id`.
 - The system focuses exclusively on core hotel inventory: **Floors**, **Room Categories (Types/Pricing)**, and **Rooms**.
