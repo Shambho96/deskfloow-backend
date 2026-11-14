@@ -94,4 +94,3 @@ class DashboardAnalyticsPayload:
     housekeeping: HousekeepingSummaryType
     category_performance: List[CategoryPerformanceType]
     vip_arrivals: List[VIPArrivalGuestType]
-

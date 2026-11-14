@@ -21,33 +21,22 @@ from typing import Dict, Tuple
 SCRIPTS: Dict[str, Tuple[str, str]] = {
     "dev": (
         f'"{sys.executable}" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000',
-        "Start FastAPI server with hot-reload on http://localhost:8000"
+        "Start FastAPI server with hot-reload on http://localhost:8000",
     ),
-    "run": (
-        f'"{sys.executable}" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000',
-        "Alias for 'dev'"
-    ),
-    "migrate": (
-        f'"{sys.executable}" -m alembic upgrade head',
-        "Apply all database migrations (alembic upgrade head)"
-    ),
+    "run": (f'"{sys.executable}" -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000', "Alias for 'dev'"),
+    "migrate": (f'"{sys.executable}" -m alembic upgrade head', "Apply all database migrations (alembic upgrade head)"),
     "makemigrations": (
         f'"{sys.executable}" -m alembic revision --autogenerate -m',
-        "Auto-generate migration script (Usage: python run.py makemigrations \"description\")"
+        'Auto-generate migration script (Usage: python run.py makemigrations "description")',
     ),
     "rollback": (
         f'"{sys.executable}" -m alembic downgrade -1',
-        "Roll back the last migration step (alembic downgrade -1)"
+        "Roll back the last migration step (alembic downgrade -1)",
     ),
-    "check-db": (
-        f'"{sys.executable}" -m app.core.db_check',
-        "Test database connection and measure latency"
-    ),
-    "test": (
-        f'"{sys.executable}" -m pytest',
-        "Run automated tests with pytest"
-    )
+    "check-db": (f'"{sys.executable}" -m app.core.db_check', "Test database connection and measure latency"),
+    "test": (f'"{sys.executable}" -m pytest', "Run automated tests with pytest"),
 }
+
 
 def print_help():
     print("\n" + "=" * 65)
@@ -59,6 +48,7 @@ def print_help():
     for cmd, (_, desc) in SCRIPTS.items():
         print(f"  {cmd:<17} {desc}")
     print("=" * 65 + "\n")
+
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
@@ -74,11 +64,13 @@ def main():
         sys.exit(1)
 
     cmd_template, _ = SCRIPTS[command]
-    
+
     # Append any additional flags or arguments passed by the user
     if extra_args:
         # Wrap string args containing spaces with quotes
-        sanitized_args = [f'"{a}"' if " " in a and not (a.startswith('"') and a.endswith('"')) else a for a in extra_args]
+        sanitized_args = [
+            f'"{a}"' if " " in a and not (a.startswith('"') and a.endswith('"')) else a for a in extra_args
+        ]
         full_command = f"{cmd_template} {' '.join(sanitized_args)}"
     else:
         full_command = cmd_template
@@ -92,6 +84,7 @@ def main():
     except KeyboardInterrupt:
         print("\n[INFO] Process stopped by user.")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

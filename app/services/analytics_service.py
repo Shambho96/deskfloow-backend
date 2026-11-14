@@ -26,9 +26,7 @@ async def get_dashboard_analytics(
     Strictly isolated by client_id and outlet_id.
     """
     # 1. Fetch Outlet verification
-    outlet_res = await session.execute(
-        select(Outlet).where(Outlet.id == outlet_id, Outlet.client_id == client_id)
-    )
+    outlet_res = await session.execute(select(Outlet).where(Outlet.id == outlet_id, Outlet.client_id == client_id))
     outlet = outlet_res.scalar_one_or_none()
     if not outlet:
         raise ValueError(f"Outlet #{outlet_id} not found or does not belong to client #{client_id}.")
@@ -49,27 +47,21 @@ async def get_dashboard_analytics(
     total_rooms_count = len(all_rooms)
 
     # 3. Fetch active OOO maintenance tickets
-    ooo_stmt = (
-        select(MaintenanceTicket)
-        .where(
-            MaintenanceTicket.client_id == client_id,
-            MaintenanceTicket.outlet_id == outlet_id,
-            MaintenanceTicket.is_room_ooo.is_(True),
-            MaintenanceTicket.status != "RESOLVED",
-        )
+    ooo_stmt = select(MaintenanceTicket).where(
+        MaintenanceTicket.client_id == client_id,
+        MaintenanceTicket.outlet_id == outlet_id,
+        MaintenanceTicket.is_room_ooo.is_(True),
+        MaintenanceTicket.status != "RESOLVED",
     )
     ooo_res = await session.execute(ooo_stmt)
     ooo_tickets = ooo_res.scalars().all()
     ooo_room_ids = {t.room_id for t in ooo_tickets}
 
     # 4. Fetch active housekeeping tasks
-    hk_stmt = (
-        select(HousekeepingTask)
-        .where(
-            HousekeepingTask.client_id == client_id,
-            HousekeepingTask.outlet_id == outlet_id,
-            HousekeepingTask.status.in_(["PENDING", "IN_PROGRESS"]),
-        )
+    hk_stmt = select(HousekeepingTask).where(
+        HousekeepingTask.client_id == client_id,
+        HousekeepingTask.outlet_id == outlet_id,
+        HousekeepingTask.status.in_(["PENDING", "IN_PROGRESS"]),
     )
     hk_res = await session.execute(hk_stmt)
     hk_tasks = hk_res.scalars().all()
@@ -100,18 +92,20 @@ async def get_dashboard_analytics(
             room_status = "CLEAN"
             clean_rooms.append(r)
 
-        classified_rooms_list.append({
-            "room_id": r_id,
-            "room_number": r.room_number,
-            "category_name": cat_name,
-            "status": room_status,
-        })
+        classified_rooms_list.append(
+            {
+                "room_id": r_id,
+                "room_number": r.room_number,
+                "category_name": cat_name,
+                "status": room_status,
+            }
+        )
 
     salable_rooms_count = max(0, total_rooms_count - len(ooo_rooms))
 
     # 6. Fetch Reservations for target date & 7-day trend window
     start_trend_date = target_date - timedelta(days=max(1, trend_days - 1))
-    
+
     trend_reservations_stmt = (
         select(Reservation)
         .options(
@@ -134,17 +128,12 @@ async def get_dashboard_analytics(
     # 7. In-House Occupancy and Revenue for Target Date
     # Guest stays if check_in_date <= target_date < check_out_date
     target_date_inhouse = [
-        res for res in active_range_reservations
-        if res.check_in_date <= target_date < res.check_out_date
+        res for res in active_range_reservations if res.check_in_date <= target_date < res.check_out_date
     ]
     occupied_count = len(target_date_inhouse)
     daily_room_revenue = sum(float(res.rate_per_night or 0.0) for res in target_date_inhouse)
 
-    occupancy_percent = (
-        round((occupied_count / salable_rooms_count) * 100.0, 1)
-        if salable_rooms_count > 0
-        else 0.0
-    )
+    occupancy_percent = round((occupied_count / salable_rooms_count) * 100.0, 1) if salable_rooms_count > 0 else 0.0
     adr = round(daily_room_revenue / occupied_count, 2) if occupied_count > 0 else 0.0
     revpar = round(daily_room_revenue / salable_rooms_count, 2) if salable_rooms_count > 0 else 0.0
 
@@ -172,14 +161,11 @@ async def get_dashboard_analytics(
     arrivals_pending = sum(1 for r in today_arrivals if r.status == "RESERVED")
 
     # 9. Departures on Target Date
-    departures_stmt = (
-        select(Reservation)
-        .where(
-            Reservation.client_id == client_id,
-            Reservation.outlet_id == outlet_id,
-            Reservation.check_out_date == target_date,
-            Reservation.status.in_(["CHECKED_IN", "CHECKED_OUT"]),
-        )
+    departures_stmt = select(Reservation).where(
+        Reservation.client_id == client_id,
+        Reservation.outlet_id == outlet_id,
+        Reservation.check_out_date == target_date,
+        Reservation.status.in_(["CHECKED_IN", "CHECKED_OUT"]),
     )
     departures_res = await session.execute(departures_stmt)
     today_departures = departures_res.scalars().all()
@@ -189,13 +175,10 @@ async def get_dashboard_analytics(
     departures_pending = sum(1 for r in today_departures if r.status == "CHECKED_IN")
 
     # 10. TrevPAR & Total Line Items Revenue Posted Today
-    folio_items_stmt = (
-        select(func.coalesce(func.sum(FolioLineItem.total_amount), 0.0))
-        .where(
-            FolioLineItem.client_id == client_id,
-            FolioLineItem.outlet_id == outlet_id,
-            cast(FolioLineItem.posted_at, Date) == target_date,
-        )
+    folio_items_stmt = select(func.coalesce(func.sum(FolioLineItem.total_amount), 0.0)).where(
+        FolioLineItem.client_id == client_id,
+        FolioLineItem.outlet_id == outlet_id,
+        cast(FolioLineItem.posted_at, Date) == target_date,
     )
     folio_items_res = await session.execute(folio_items_stmt)
     total_posted_today = float(folio_items_res.scalar_one_or_none() or 0.0)
@@ -203,27 +186,21 @@ async def get_dashboard_analytics(
     trevpar = round(effective_total_rev / salable_rooms_count, 2) if salable_rooms_count > 0 else 0.0
 
     # 11. ALOS (Average Length of Stay)
-    all_active_stmt = (
-        select(Reservation)
-        .where(
-            Reservation.client_id == client_id,
-            Reservation.outlet_id == outlet_id,
-            Reservation.status.not_in(["CANCELLED", "NO_SHOW"]),
-            or_(
-                and_(Reservation.check_in_date <= target_date, Reservation.check_out_date > target_date),
-                Reservation.check_in_date == target_date,
-            ),
-        )
+    all_active_stmt = select(Reservation).where(
+        Reservation.client_id == client_id,
+        Reservation.outlet_id == outlet_id,
+        Reservation.status.not_in(["CANCELLED", "NO_SHOW"]),
+        or_(
+            and_(Reservation.check_in_date <= target_date, Reservation.check_out_date > target_date),
+            Reservation.check_in_date == target_date,
+        ),
     )
     all_active_res = await session.execute(all_active_stmt)
     all_active_reservations = all_active_res.scalars().all()
 
     total_active_bookings = len(all_active_reservations)
     if total_active_bookings > 0:
-        total_nights = sum(
-            max(1, (r.check_out_date - r.check_in_date).days)
-            for r in all_active_reservations
-        )
+        total_nights = sum(max(1, (r.check_out_date - r.check_in_date).days) for r in all_active_reservations)
         alos = round(total_nights / total_active_bookings, 1)
     else:
         alos = 1.0
@@ -231,32 +208,27 @@ async def get_dashboard_analytics(
     # 12. 7-Day Revenue & Occupancy Historical/Pacing Trend
     days_map = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     weekly_trend = []
-    
+
     for i in range(trend_days):
         day_date = start_trend_date + timedelta(days=i)
         day_name = days_map[day_date.weekday()]
-        
+
         # In-house on day_date: check_in_date <= day_date < check_out_date
-        day_inhouse = [
-            res for res in active_range_reservations
-            if res.check_in_date <= day_date < res.check_out_date
-        ]
+        day_inhouse = [res for res in active_range_reservations if res.check_in_date <= day_date < res.check_out_date]
         day_occ_count = len(day_inhouse)
         day_rev = sum(float(res.rate_per_night or 0.0) for res in day_inhouse)
-        day_occ_pct = (
-            round((day_occ_count / salable_rooms_count) * 100.0, 1)
-            if salable_rooms_count > 0
-            else 0.0
-        )
+        day_occ_pct = round((day_occ_count / salable_rooms_count) * 100.0, 1) if salable_rooms_count > 0 else 0.0
         day_adr = round(day_rev / day_occ_count, 2) if day_occ_count > 0 else 0.0
 
-        weekly_trend.append({
-            "day": day_name,
-            "date": day_date.isoformat(),
-            "revenue": round(day_rev, 2),
-            "occupancy": day_occ_pct,
-            "adr": day_adr,
-        })
+        weekly_trend.append(
+            {
+                "day": day_name,
+                "date": day_date.isoformat(),
+                "revenue": round(day_rev, 2),
+                "occupancy": day_occ_pct,
+                "adr": day_adr,
+            }
+        )
 
     # 13. Channel / Booking Source Mix
     channel_counts: Dict[str, Dict[str, Any]] = {
@@ -289,14 +261,16 @@ async def get_dashboard_analytics(
     for chan_name, info in channel_counts.items():
         cnt = info["count"]
         pct = round((cnt / total_active_bookings) * 100.0, 1) if total_active_bookings > 0 else 0.0
-        channel_mix_list.append({
-            "name": chan_name,
-            "source_key": info["source_key"],
-            "count": cnt,
-            "percentage": pct,
-            "revenue": round(info["revenue"], 2),
-            "color": info["color"],
-        })
+        channel_mix_list.append(
+            {
+                "name": chan_name,
+                "source_key": info["source_key"],
+                "count": cnt,
+                "percentage": pct,
+                "revenue": round(info["revenue"], 2),
+                "color": info["color"],
+            }
+        )
 
     # 14. Room Category Performance & ADR Yield
     categories_stmt = (
@@ -315,40 +289,31 @@ async def get_dashboard_analytics(
     for cat in all_categories:
         cat_id = int(cat.id)
         cat_total_rooms = sum(1 for r in cat.rooms if r.is_active)
-        
-        # Occupied rooms belonging to this category
-        cat_occupied_res = [
-            r for r in target_date_inhouse
-            if r.category_id == cat_id
-        ]
-        cat_occupied_count = len(cat_occupied_res)
-        cat_occ_pct = (
-            round((cat_occupied_count / cat_total_rooms) * 100.0, 1)
-            if cat_total_rooms > 0
-            else 0.0
-        )
-        cat_rev = sum(float(r.rate_per_night or 0.0) for r in cat_occupied_res)
-        cat_adr = (
-            round(cat_rev / cat_occupied_count, 2)
-            if cat_occupied_count > 0
-            else float(cat.base_price or 0.0)
-        )
 
-        category_performance_list.append({
-            "category_id": cat_id,
-            "category": cat.name,
-            "occupancy": cat_occ_pct,
-            "adr": cat_adr,
-            "total_rooms": cat_total_rooms,
-            "occupied": cat_occupied_count,
-        })
+        # Occupied rooms belonging to this category
+        cat_occupied_res = [r for r in target_date_inhouse if r.category_id == cat_id]
+        cat_occupied_count = len(cat_occupied_res)
+        cat_occ_pct = round((cat_occupied_count / cat_total_rooms) * 100.0, 1) if cat_total_rooms > 0 else 0.0
+        cat_rev = sum(float(r.rate_per_night or 0.0) for r in cat_occupied_res)
+        cat_adr = round(cat_rev / cat_occupied_count, 2) if cat_occupied_count > 0 else float(cat.base_price or 0.0)
+
+        category_performance_list.append(
+            {
+                "category_id": cat_id,
+                "category": cat.name,
+                "occupancy": cat_occ_pct,
+                "adr": cat_adr,
+                "total_rooms": cat_total_rooms,
+                "occupied": cat_occupied_count,
+            }
+        )
 
     # 15. VIP & Noted Arriving Guests (Today)
     vip_arrivals_list = []
     for r in today_arrivals:
         guest = r.guest
         special_reqs = list(r.special_requests) if r.special_requests else []
-        
+
         if guest and hasattr(guest, "tags") and guest.tags:
             for t in guest.tags:
                 if str(t) not in special_reqs:
@@ -366,19 +331,21 @@ async def get_dashboard_analytics(
             cat_name = r.category.name if r.category else "Standard"
             folio_id = int(r.folios[0].id) if r.folios else None
 
-            vip_arrivals_list.append({
-                "reservation_id": int(r.id),
-                "reservation_code": r.reservation_code,
-                "guest_name": guest_full_name,
-                "phone": guest.phone,
-                "room_number": room_num,
-                "category_name": cat_name,
-                "eta": r.eta or "12:00 PM",
-                "status": r.status,
-                "vip_status": vip_status,
-                "special_requests": special_reqs,
-                "folio_id": folio_id,
-            })
+            vip_arrivals_list.append(
+                {
+                    "reservation_id": int(r.id),
+                    "reservation_code": r.reservation_code,
+                    "guest_name": guest_full_name,
+                    "phone": guest.phone,
+                    "room_number": room_num,
+                    "category_name": cat_name,
+                    "eta": r.eta or "12:00 PM",
+                    "status": r.status,
+                    "vip_status": vip_status,
+                    "special_requests": special_reqs,
+                    "folio_id": folio_id,
+                }
+            )
 
     # Return complete aggregated payload
     return {
@@ -415,4 +382,3 @@ async def get_dashboard_analytics(
         "category_performance": category_performance_list,
         "vip_arrivals": vip_arrivals_list,
     }
-

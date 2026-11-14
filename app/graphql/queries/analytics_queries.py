@@ -86,4 +86,3 @@ class AnalyticsQuery:
             category_performance=cat_perf,
             vip_arrivals=vip_arrivals,
         )
-
