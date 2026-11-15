@@ -14,6 +14,8 @@ from app.models.idempotency import IdempotencyKey
 from app.models.housekeeping import HousekeepingTask, MaintenanceTicket
 from app.models.audit_log import OperationalAuditLog
 from app.models.loyalty import LoyaltyTier
+from app.models.reporting import CustomDashboard, CustomReportCard
+from app.models.hotel_config import HotelSpecialRequest, HotelGuestTag
 
 __all__ = [
     "Client",
@@ -35,4 +37,8 @@ __all__ = [
     "MaintenanceTicket",
     "OperationalAuditLog",
     "LoyaltyTier",
+    "CustomDashboard",
+    "CustomReportCard",
+    "HotelSpecialRequest",
+    "HotelGuestTag",
 ]

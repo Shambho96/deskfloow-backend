@@ -73,6 +73,7 @@ class Reservation(Base):
 
     # Direct Channels Only: WALKIN, DIRECT, WHATSAPP, WEBSITE, OTHER
     booking_source: Mapped[str] = mapped_column(String(50), default="WALKIN", nullable=False)
+    purpose_of_visit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     adults_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     children_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

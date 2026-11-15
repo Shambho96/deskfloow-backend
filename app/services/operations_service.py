@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 from decimal import Decimal
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, not_, func, desc
+from sqlalchemy import select, and_, or_, not_, func, desc, text
 from sqlalchemy.orm import selectinload
 
 from app.models.client import Client
@@ -42,6 +42,22 @@ def calculate_gst_tax_rate(nightly_rate: Decimal) -> Decimal:
 # QUERIES: OPERATIONS BOARD, KANBAN, TAPE CHART, HOUSEKEEPING
 # ==============================================================================
 
+_target_audience_columns_verified = False
+
+
+async def ensure_target_audience_columns(session: AsyncSession) -> None:
+    """Ensures purpose_of_visit exists on reservations and guests tables in DB."""
+    global _target_audience_columns_verified
+    if _target_audience_columns_verified:
+        return
+    try:
+        conn = await session.connection()
+        await conn.execute(text("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS purpose_of_visit VARCHAR(50);"))
+        await conn.execute(text("ALTER TABLE guests ADD COLUMN IF NOT EXISTS purpose_of_visit VARCHAR(50);"))
+        _target_audience_columns_verified = True
+    except Exception:
+        pass
+
 
 async def get_operations_board(
     session: AsyncSession,
@@ -54,6 +70,7 @@ async def get_operations_board(
     """
     Returns complete room occupancy board grouped by building and floor for target_date.
     """
+    await ensure_target_audience_columns(session)
     # 1. Fetch buildings, floors, categories, and rooms
     b_query = (
         select(Building)
@@ -418,6 +435,8 @@ async def create_reservation(
     Creates a new reservation with double-booking lock, automatic guest profile,
     open folio initialization, and optional advance payment.
     """
+    await ensure_target_audience_columns(session)
+
     idempotency_key = data.get("idempotency_key")
     saved_response, is_new = await check_or_lock_idempotency(
         session, client_id, outlet_id, idempotency_key, "createReservation", data
@@ -443,6 +462,17 @@ async def create_reservation(
         if not is_avail:
             raise ValueError(f"Room is already reserved for the selected stay dates ({check_in} to {check_out}).")
 
+    # Target audience & origin metadata
+    dob_val = None
+    if data.get("date_of_birth"):
+        try:
+            dob_val = datetime.strptime(str(data["date_of_birth"]).strip(), "%Y-%m-%d").date()
+        except Exception:
+            dob_val = None
+    city_val = (data.get("city") or "").strip() or None
+    state_val = (data.get("state") or "").strip() or None
+    purpose_val = (data.get("purpose_of_visit") or "").strip().upper() or None
+
     # 1. Get or create guest
     guest_id = data.get("guest_id")
     if not guest_id:
@@ -467,6 +497,10 @@ async def create_reservation(
                 id_type=data.get("id_type"),
                 id_number=data.get("id_number"),
                 tags=data.get("special_requests") or [],
+                date_of_birth=dob_val,
+                city=city_val,
+                state=state_val,
+                purpose_of_visit=purpose_val,
             )
             session.add(guest)
             await session.flush()
@@ -477,6 +511,14 @@ async def create_reservation(
                 guest.id_type = data["id_type"]
             if data.get("id_number"):
                 guest.id_number = data["id_number"]
+            if dob_val:
+                guest.date_of_birth = dob_val
+            if city_val:
+                guest.city = city_val
+            if state_val:
+                guest.state = state_val
+            if purpose_val:
+                guest.purpose_of_visit = purpose_val
             if data.get("special_requests"):
                 existing_tags = list(guest.tags or [])
                 for req in data["special_requests"]:
@@ -518,6 +560,7 @@ async def create_reservation(
         eta=data.get("eta"),
         status="RESERVED",
         booking_source=booking_source,
+        purpose_of_visit=purpose_val,
         adults_count=data.get("adults_count", 1),
         children_count=data.get("children_count", 0),
         special_requests=data.get("special_requests") or [],

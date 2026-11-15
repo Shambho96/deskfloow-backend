@@ -13,6 +13,12 @@ from app.graphql.types.guest_types import (
     UpdateGuestInput,
     VerifyKycInput,
 )
+from app.graphql.types.hotel_config_types import (
+    HotelSpecialRequestType,
+    HotelSpecialRequestInput,
+    HotelGuestTagType,
+    HotelGuestTagInput,
+)
 from app.services.guest_service import (
     add_guest_crm_note,
     create_crm_guest,
@@ -21,6 +27,10 @@ from app.services.guest_service import (
     verify_guest_kyc,
 )
 from app.services.loyalty_service import save_loyalty_tiers
+from app.services.hotel_config_service import (
+    save_hotel_special_requests,
+    save_hotel_guest_tags,
+)
 
 
 @strawberry.type
@@ -162,3 +172,77 @@ class GuestMutation:
                 session, ctx.client_id, ctx.outlet_id, guest_id, is_blacklisted, reason
             )
             return _map_guest_item(guest_dict)
+
+    @strawberry.mutation
+    async def save_hotel_special_requests(
+        self, info: Info, items: List[HotelSpecialRequestInput], outlet_id: Optional[int] = None
+    ) -> List[HotelSpecialRequestType]:
+        """Save and update configured hotel special requests."""
+        ctx = get_auth_context(info)
+        target_outlet = outlet_id or (int(ctx.outlet_id) if ctx.outlet_id else None)
+        raw_items = [
+            {
+                "code": item.code,
+                "label": item.label,
+                "category": item.category or "ROOM",
+                "price": float(item.price or 0.0),
+                "is_chargeable": bool(item.is_chargeable) if item.is_chargeable is not None else False,
+                "icon": item.icon or "Sparkles",
+                "is_active": bool(item.is_active) if item.is_active is not None else True,
+                "display_order": int(item.display_order) if item.display_order is not None else idx + 1,
+            }
+            for idx, item in enumerate(items)
+        ]
+        async with AsyncSessionLocal() as session:
+            saved = await save_hotel_special_requests(session, int(ctx.client_id), target_outlet, raw_items)
+            return [
+                HotelSpecialRequestType(
+                    id=x.id,
+                    client_id=x.client_id,
+                    outlet_id=x.outlet_id,
+                    code=x.code,
+                    label=x.label,
+                    category=x.category,
+                    is_chargeable=x.is_chargeable,
+                    price=float(x.price),
+                    icon=x.icon,
+                    display_order=x.display_order,
+                    is_active=x.is_active,
+                )
+                for x in saved
+            ]
+
+    @strawberry.mutation
+    async def save_hotel_guest_tags(
+        self, info: Info, items: List[HotelGuestTagInput], outlet_id: Optional[int] = None
+    ) -> List[HotelGuestTagType]:
+        """Save and update configured hotel guest tags."""
+        ctx = get_auth_context(info)
+        target_outlet = outlet_id or (int(ctx.outlet_id) if ctx.outlet_id else None)
+        raw_items = [
+            {
+                "name": item.name,
+                "color": item.color or "primary",
+                "category": item.category or "PROFILE",
+                "description": item.description,
+                "is_active": bool(item.is_active) if item.is_active is not None else True,
+                "display_order": int(item.display_order) if item.display_order is not None else idx + 1,
+            }
+            for idx, item in enumerate(items)
+        ]
+        async with AsyncSessionLocal() as session:
+            saved = await save_hotel_guest_tags(session, int(ctx.client_id), target_outlet, raw_items)
+            return [
+                HotelGuestTagType(
+                    id=x.id,
+                    client_id=x.client_id,
+                    outlet_id=x.outlet_id,
+                    name=x.name,
+                    color=x.color,
+                    category=x.category,
+                    description=x.description,
+                    display_order=x.display_order,
+                    is_active=x.is_active,
+                )
+                for x in saved
+            ]

@@ -13,6 +13,10 @@ from app.graphql.types.guest_types import (
     LoyaltyTierType,
     TierBreakdownType,
 )
+from app.graphql.types.hotel_config_types import (
+    HotelSpecialRequestType,
+    HotelGuestTagType,
+)
 from app.services.guest_service import (
     get_guest_by_id,
     get_guest_stay_history,
@@ -20,6 +24,10 @@ from app.services.guest_service import (
     get_outlet_guests,
 )
 from app.services.loyalty_service import get_loyalty_tiers
+from app.services.hotel_config_service import (
+    get_hotel_special_requests,
+    get_hotel_guest_tags,
+)
 
 
 def _map_guest_item(d: dict) -> GuestCRMItemType:
@@ -99,6 +107,54 @@ class GuestQuery:
                     is_active=t.is_active,
                 )
                 for t in tiers
+            ]
+
+    @strawberry.field
+    async def hotel_special_requests(
+        self, info: Info, outlet_id: Optional[int] = None
+    ) -> List[HotelSpecialRequestType]:
+        """Fetch configured hotel special requests for the outlet."""
+        ctx = get_auth_context(info)
+        target_outlet = outlet_id or (int(ctx.outlet_id) if ctx.outlet_id else None)
+        async with AsyncSessionLocal() as session:
+            items = await get_hotel_special_requests(session, int(ctx.client_id), target_outlet)
+            return [
+                HotelSpecialRequestType(
+                    id=r.id,
+                    client_id=r.client_id,
+                    outlet_id=r.outlet_id,
+                    code=r.code,
+                    label=r.label,
+                    category=r.category,
+                    is_chargeable=r.is_chargeable,
+                    price=float(r.price),
+                    icon=r.icon,
+                    display_order=r.display_order,
+                    is_active=r.is_active,
+                )
+                for r in items
+            ]
+
+    @strawberry.field
+    async def hotel_guest_tags(self, info: Info, outlet_id: Optional[int] = None) -> List[HotelGuestTagType]:
+        """Fetch configured hotel guest tags for the outlet."""
+        ctx = get_auth_context(info)
+        target_outlet = outlet_id or (int(ctx.outlet_id) if ctx.outlet_id else None)
+        async with AsyncSessionLocal() as session:
+            tags = await get_hotel_guest_tags(session, int(ctx.client_id), target_outlet)
+            return [
+                HotelGuestTagType(
+                    id=t.id,
+                    client_id=t.client_id,
+                    outlet_id=t.outlet_id,
+                    name=t.name,
+                    color=t.color,
+                    category=t.category,
+                    description=t.description,
+                    display_order=t.display_order,
+                    is_active=t.is_active,
+                )
+                for t in tags
             ]
 
     @strawberry.field

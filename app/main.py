@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from sqlalchemy import text
 from app.config import settings
-from app.routers import auth_router
+from app.routers import auth_router, reporting_router
 from app.core.db_check import check_database_connection
 from app.db.session import engine
 
@@ -37,6 +37,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan context manager (startup & shutdown tasks)."""
     print(f"[INFO] Starting {settings.APP_NAME} in {settings.ENVIRONMENT} mode...")
     await check_database_connection(abort_on_fail=False)
+
+    # Auto-migrate newly introduced schema columns
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("ALTER TABLE reservations ADD COLUMN IF NOT EXISTS purpose_of_visit VARCHAR(50);"))
+            await conn.execute(text("ALTER TABLE guests ADD COLUMN IF NOT EXISTS purpose_of_visit VARCHAR(50);"))
+            print("[INFO] Database schema verified: purpose_of_visit columns present.")
+    except Exception as e:
+        print(f"[WARN] Failed to verify purpose_of_visit columns on startup: {e}")
 
     keepalive_task = None
     if settings.ENVIRONMENT == "development":
@@ -103,6 +112,7 @@ graphql_app = GraphQLRouter(schema, context_getter=get_graphql_context)
 
 # Include Routers
 app.include_router(auth_router.router)
+app.include_router(reporting_router.router)
 app.include_router(graphql_app, prefix="/graphql", tags=["GraphQL IDE"])
 
 

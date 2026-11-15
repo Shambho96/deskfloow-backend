@@ -54,6 +54,10 @@ class OperationsMutation:
             "transaction_ref": input.transaction_ref,
             "eta": input.eta,
             "idempotency_key": input.idempotency_key,
+            "purpose_of_visit": input.purpose_of_visit,
+            "date_of_birth": input.date_of_birth,
+            "city": input.city,
+            "state": input.state,
         }
 
         async with AsyncSessionLocal() as session:

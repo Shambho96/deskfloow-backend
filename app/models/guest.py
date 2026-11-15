@@ -59,6 +59,7 @@ class Guest(Base):
     blacklist_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     nationality: Mapped[str] = mapped_column(String(100), default="Indian", nullable=False)
+    purpose_of_visit: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     special_preferences: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     tags: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
     notes: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)

@@ -46,6 +46,10 @@ def map_guest(
     if hasattr(g, "special_preferences") and g.special_preferences and g.special_preferences not in reqs:
         reqs.append(g.special_preferences)
 
+    dob_str = None
+    if hasattr(g, "date_of_birth") and g.date_of_birth:
+        dob_str = g.date_of_birth.isoformat() if hasattr(g.date_of_birth, "isoformat") else str(g.date_of_birth)
+
     return GuestType(
         id=int(g.id),
         first_name=g.first_name,
@@ -58,6 +62,10 @@ def map_guest(
         nationality=g.nationality,
         booking_source=last_booking_source,
         special_requests=reqs,
+        date_of_birth=dob_str,
+        city=getattr(g, "city", None),
+        state=getattr(g, "state", None),
+        purpose_of_visit=getattr(g, "purpose_of_visit", None),
     )
 
 
@@ -78,6 +86,7 @@ def map_reservation(res) -> ReservationType:
         eta=res.eta,
         status=ReservationStatusEnum(res.status),
         booking_source=BookingSourceEnum(res.booking_source),
+        purpose_of_visit=getattr(res, "purpose_of_visit", None),
         adults_count=int(res.adults_count),
         children_count=int(res.children_count),
         rate_per_night=float(res.rate_per_night),

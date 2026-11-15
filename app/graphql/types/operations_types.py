@@ -47,6 +47,10 @@ class GuestType:
     nationality: str = "Indian"
     booking_source: Optional[str] = None
     special_requests: List[str] = strawberry.field(default_factory=list)
+    date_of_birth: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
+    purpose_of_visit: Optional[str] = None
 
     @strawberry.field
     def full_name(self) -> str:
@@ -107,6 +111,7 @@ class ReservationType:
     eta: Optional[str] = None
     status: ReservationStatusEnum
     booking_source: BookingSourceEnum
+    purpose_of_visit: Optional[str] = None
     adults_count: int
     children_count: int
     rate_per_night: float
@@ -214,6 +219,10 @@ class CreateReservationInput:
     transaction_ref: Optional[str] = None
     eta: Optional[str] = None
     idempotency_key: Optional[str] = None
+    purpose_of_visit: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    city: Optional[str] = None
+    state: Optional[str] = None
 
 
 @strawberry.input
